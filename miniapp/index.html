@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#101828" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <title>Shift Mini App</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-wrap">
+          <div class="brand-badge">S</div>
+          <div>
+            <div class="eyebrow">Shift</div>
+            <div class="brand-name">Game Hub</div>
+          </div>
+        </div>
+        <div class="status-pill">
+          <span class="dot"></span>
+          online
+        </div>
+      </header>
+
+      <main class="screen active" data-screen="main">
+        <section class="hero-card">
+          <div class="hero-meta">
+            <span>Баланс</span>
+            <button class="ghost-button small" id="dailyBtn">+ Ежедневный</button>
+          </div>
+          <div class="money-row">
+            <div class="coin-icon">🪙</div>
+            <div class="money-value" id="balanceValue">1250</div>
+          </div>
+          <div class="hero-stats">
+            <div>
+              <span class="muted">Серия</span>
+              <strong id="streakValue">3 дня</strong>
+            </div>
+            <div>
+              <span class="muted">Уровень</span>
+              <strong id="levelValue">6</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="cards-grid">
+          <article class="stat-card accent">
+            <span class="label">VIP</span>
+            <strong id="vipValue">Активен</strong>
+          </article>
+          <article class="stat-card">
+            <span class="label">XP</span>
+            <strong id="xpValue">420 / 600</strong>
+          </article>
+          <article class="stat-card">
+            <span class="label">Победы</span>
+            <strong id="winsValue">84</strong>
+          </article>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <span>Быстрые действия</span>
+          </div>
+          <div class="action-list">
+            <button class="action-item" data-quick="25">
+              <span>🎯</span>
+              <div>
+                <strong>Заработать</strong>
+                <small>+25 монет</small>
+              </div>
+            </button>
+            <button class="action-item" data-quick="100">
+              <span>🏆</span>
+              <div>
+                <strong>Победа</strong>
+                <small>+100 монет</small>
+              </div>
+            </button>
+            <button class="action-item" data-quick="250">
+              <span>💎</span>
+              <div>
+                <strong>Награда</strong>
+                <small>+250 монет</small>
+              </div>
+            </button>
+          </div>
+        </section>
+      </main>
+
+      <main class="screen" data-screen="games">
+        <section class="panel">
+          <div class="panel-header">
+            <span>Мини-игры</span>
+          </div>
+          <div class="game-grid">
+            <button class="game-card" data-game="rps">
+              <span>✊</span>
+              <strong>КНБ</strong>
+            </button>
+            <button class="game-card" data-game="roulette">
+              <span>🎰</span>
+              <strong>Рулетка</strong>
+            </button>
+            <button class="game-card" data-game="slots">
+              <span>🎲</span>
+              <strong>Слоты</strong>
+            </button>
+            <button class="game-card" data-game="duel">
+              <span>⚔️</span>
+              <strong>Дуэль</strong>
+            </button>
+          </div>
+        </section>
+      </main>
+
+      <main class="screen" data-screen="profile">
+        <section class="panel profile-card">
+          <div class="avatar">A</div>
+          <div class="profile-info">
+            <h3 id="profileName">Игрок</h3>
+            <p id="profileTag">Уровень 6 • Shift</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <span>Профиль</span>
+          </div>
+          <ul class="stats-list">
+            <li><span>Карта</span><strong id="profileCard">VIP</strong></li>
+            <li><span>Карма</span><strong id="karmaValue">+145</strong></li>
+            <li><span>Сообщения</span><strong id="messagesValue">1,240</strong></li>
+            <li><span>Броня</span><strong id="shieldValue">2</strong></li>
+          </ul>
+        </section>
+      </main>
+
+      <nav class="bottom-nav" aria-label="Навигация">
+        <button class="nav-item active" data-target="main">
+          <span>🏠</span>
+          <small>Главное</small>
+        </button>
+        <button class="nav-item" data-target="games">
+          <span>🎮</span>
+          <small>Мини игры</small>
+        </button>
+        <button class="nav-item" data-target="profile">
+          <span>👤</span>
+          <small>Профиль</small>
+        </button>
+      </nav>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

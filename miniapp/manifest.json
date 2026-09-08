@@ -1,0 +1,17 @@
+{
+  "name": "Shift Mini App",
+  "short_name": "Shift",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#101828",
+  "description": "Mini app for Shift bot",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
