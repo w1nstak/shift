@@ -4,8 +4,8 @@
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#1769FF",
-  "theme_color": "#1769FF",
+  "background_color": "#F2F2F7",
+  "theme_color": "#F2F2F7",
   "description": "Shift — приложение для чатов, AI и игр",
   "icons": [
     {

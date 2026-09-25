@@ -32,8 +32,8 @@
       if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
     } catch (e) {}
     try {
-      if (tg.setHeaderColor) tg.setHeaderColor('#1769FF');
-      if (tg.setBackgroundColor) tg.setBackgroundColor('#1769FF');
+      if (tg.setHeaderColor) tg.setHeaderColor('#F2F2F7');
+      if (tg.setBackgroundColor) tg.setBackgroundColor('#F2F2F7');
     } catch (e) {}
     if (typeof tg.onEvent === 'function') {
       tg.onEvent('themeChanged', function () {});
@@ -295,7 +295,7 @@
         '<button type="button" class="banner" data-open-chat="shift-ai">' +
           '<span class="banner__icon">✨</span>' +
           '<span><strong>Shift AI</strong><span>Чем могу помочь?</span></span>' +
-          '<span class="chevron" style="color:#fff;margin-left:auto">›</span>' +
+          '<span class="chevron" style="margin-left:auto">›</span>' +
         '</button>' +
         (ui.chatFilter === 'ai' ? '' : (
           '<div class="group">' +
@@ -393,7 +393,7 @@
             '<span class="tag">Daily Challenge</span>' +
             '<h3>Math Battle</h3>' +
             '<p>Сегодняшний челлендж · рекорд ' + store.stats.bestMath + '</p>' +
-            '<span class="btn btn--primary" style="min-height:40px;padding:0 16px;font-size:15px">Играть</span>' +
+          '<span class="btn btn--primary" style="min-height:36px;padding:0 14px;font-size:15px;border-radius:10px">Играть</span>' +
           '</button>' +
         '</div>' +
         '<p class="section-label">Все игры</p>' +
@@ -544,7 +544,7 @@
             '<p>Ваш результат: <strong>' + g.score + '</strong></p>' +
             '<div class="actions">' +
               '<button type="button" class="btn btn--blue btn--wide" data-replay>Играть ещё</button>' +
-              '<button type="button" class="btn btn--ghost btn--wide" data-back-games style="color:#1769FF;background:#F2F2F7">В игры</button>' +
+              '<button type="button" class="btn btn--ghost btn--wide" data-back-games>В игры</button>' +
             '</div>' +
           '</div>' +
         '</div></section>'
