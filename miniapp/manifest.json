@@ -1,11 +1,11 @@
 {
-  "name": "Shift Mini App",
+  "name": "Shift",
   "short_name": "Shift",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#101828",
-  "description": "Mini app for Shift bot",
+  "background_color": "#0b0d10",
+  "theme_color": "#0b0d10",
+  "description": "Shift — premium Mini App with Iris",
   "icons": [
     {
       "src": "icon.svg",
