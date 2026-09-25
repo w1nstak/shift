@@ -127,6 +127,20 @@ async def build_mini_app_url(message: Message, uid: int, cid: int) -> str:
         "shield": int(inv.get("щит", 0) or 0),
         "inventory": json.dumps(inv, ensure_ascii=False),
     }
+    clan = await db.get_user_clan(uid, cid)
+    if clan:
+        members = await db.get_clan_members(clan["clan_id"])
+        role = await db.get_member_role(uid, cid)
+        params.update({
+            "clan_name": clan.get("name") or "",
+            "clan_tag": clan.get("tag") or "",
+            "clan_level": int(clan.get("level") or 1),
+            "clan_coins": int(clan.get("coins") or 0),
+            "clan_members": len(members),
+            "clan_xp": int(clan.get("xp") or 0),
+        })
+        if role:
+            params["clan_role"] = role
     base = sanitize_mini_app_url(MINI_APP_URL)
     return f"{base}?{urlencode(params)}"
 

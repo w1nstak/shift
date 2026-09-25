@@ -63,6 +63,7 @@
       achievements: {},
       messages: {},
       chats: null,
+      clan: null,
     };
   }
 
@@ -78,6 +79,7 @@
         stats: Object.assign(base.stats, parsed.stats || {}),
         achievements: Object.assign({}, parsed.achievements || {}),
         messages: Object.assign({}, parsed.messages || {}),
+        clan: parsed.clan || null,
       });
     } catch (e) {
       return defaultStore();
@@ -105,26 +107,59 @@
   }
 
   var GAMES = [
-    { id: 'math', name: 'Math Battle', desc: 'Считай быстрее всех', emoji: '🧠', difficulty: 'Средняя', featured: true },
-    { id: 'tap', name: 'Quick Tap', desc: 'Нажми цель как можно чаще', emoji: '🎯', difficulty: 'Лёгкая' },
-    { id: 'daily', name: 'Daily Challenge', desc: 'Ежедневный Math Battle', emoji: '🏆', difficulty: 'Челлендж' },
+    { id: 'math', name: 'Math Battle', desc: 'Считай быстрее всех', icon: 'brain', difficulty: 'Средняя', featured: true },
+    { id: 'tap', name: 'Quick Tap', desc: 'Нажми цель как можно чаще', icon: 'target', difficulty: 'Лёгкая' },
+    { id: 'daily', name: 'Daily Challenge', desc: 'Ежедневный Math Battle', icon: 'trophy', difficulty: 'Челлендж' },
   ];
 
   var AI_ACTIONS = [
-    { id: 'create', title: 'Создать', sub: 'Идеи и черновики', icon: '✨' },
-    { id: 'search', title: 'Найти', sub: 'Ответы и факты', icon: '🔎' },
-    { id: 'write', title: 'Написать', sub: 'Тексты и посты', icon: '📝' },
-    { id: 'plan', title: 'Спланировать', sub: 'День и задачи', icon: '🎯' },
-    { id: 'image', title: 'Создать изображение', sub: 'Визуальные идеи', icon: '🎨' },
-    { id: 'task', title: 'Выполнить', sub: 'Быстрые шаги', icon: '⚡' },
+    { id: 'create', title: 'Создать', sub: 'Идеи и черновики', icon: 'sparkles' },
+    { id: 'search', title: 'Найти', sub: 'Ответы и факты', icon: 'search' },
+    { id: 'write', title: 'Написать', sub: 'Тексты и посты', icon: 'pen' },
+    { id: 'plan', title: 'Спланировать', sub: 'День и задачи', icon: 'flag' },
+    { id: 'image', title: 'Создать изображение', sub: 'Визуальные идеи', icon: 'image' },
+    { id: 'task', title: 'Выполнить', sub: 'Быстрые шаги', icon: 'bolt' },
   ];
 
   var ACHIEVEMENTS = [
-    { id: 'first_game', title: 'Первая игра', sub: 'Сыграй любую игру', icon: '🎮' },
-    { id: 'math_200', title: 'Считака', sub: 'Набери 200 в Math Battle', icon: '🧠' },
-    { id: 'tap_40', title: 'Реактив', sub: '40 тапов в Quick Tap', icon: '🎯' },
-    { id: 'chatty', title: 'Собеседник', sub: '10 сообщений Shift', icon: '💬' },
+    { id: 'first_game', title: 'Первая игра', sub: 'Сыграй любую игру', icon: 'gamepad' },
+    { id: 'math_200', title: 'Считака', sub: 'Набери 200 в Math Battle', icon: 'brain' },
+    { id: 'tap_40', title: 'Реактив', sub: '40 тапов в Quick Tap', icon: 'target' },
+    { id: 'chatty', title: 'Собеседник', sub: '10 сообщений Shift', icon: 'chat' },
   ];
+
+  var ICONS = {
+    home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V19a1 1 0 0 0 1 1H10v-5h4v5h2.5a1 1 0 0 0 1-1v-8.5"/></svg>',
+    games: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="11" rx="3"/><path d="M8 12.5h3M9.5 11v3M15.2 11.2h.01M17.2 13.5h.01"/></svg>',
+    chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6.8A2.8 2.8 0 0 1 7.8 4h8.4A2.8 2.8 0 0 1 19 6.8v5.4A2.8 2.8 0 0 1 16.2 15H10l-4.2 3.2V6.8Z"/></svg>',
+    profile: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"/><path d="M5 19c1.4-2.8 3.9-4.3 7-4.3s5.6 1.5 7 4.3"/></svg>',
+    sparkles: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 13.6 8.4 18.5 10 13.6 11.6 12 16.5 10.4 11.6 5.5 10 10.4 8.4 12 3.5Z"/><path d="M18.5 15.5 19.3 17.7 21.5 18.5 19.3 19.3 18.5 21.5 17.7 19.3 15.5 18.5 17.7 17.7 18.5 15.5Z"/></svg>',
+    search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="6"/><path d="m16.5 16.5 3 3"/></svg>',
+    pen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 5.5 18.5 10.5"/><path d="M5 19.5 6.2 14.8 16.2 4.8a2 2 0 0 1 2.8 0l.2.2a2 2 0 0 1 0 2.8L9.2 17.8 4.5 19Z"/></svg>',
+    flag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4"/><path d="M6 5h9.5l-1.5 3.2 1.5 3.3H6"/></svg>',
+    image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.5"/><path d="m7.5 17 3.2-3.5 2.3 2.2L16 12.5 19 17"/></svg>',
+    bolt: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 6.5 13.5h5L11 21 17.5 10.5h-5L13 3Z"/></svg>',
+    brain: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 4.8a3 3 0 0 0-2.7 4.3A3.1 3.1 0 0 0 5 12.2c0 1.5.9 2.7 2.2 3.2V18a2 2 0 0 0 2 2h1.2"/><path d="M14.5 4.8a3 3 0 0 1 2.7 4.3A3.1 3.1 0 0 1 19 12.2c0 1.5-.9 2.7-2.2 3.2V18a2 2 0 0 1-2 2h-1.2"/><path d="M9.5 8.5v5M14.5 8.5v5M12 7v10"/></svg>',
+    target: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="3.5"/><path d="M12 4.5V2.8M12 21.2V19.5M4.5 12H2.8M21.2 12H19.5"/></svg>',
+    trophy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M7 6H5.2A2.2 2.2 0 0 0 3 8.2V9a3 3 0 0 0 3 3h1M17 6h1.8A2.2 2.2 0 0 1 21 8.2V9a3 3 0 0 1-3 3h-1"/></svg>',
+    gamepad: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="3" y="7" width="18" height="11" rx="3"/><path d="M8 12.5h3M9.5 11v3"/></svg>',
+    settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3.5v2.2M12 18.3v2.2M4.9 6.5l1.6 1.6M17.5 15.9l1.6 1.6M3.5 12h2.2M18.3 12h2.2M4.9 17.5l1.6-1.6M17.5 8.1l1.6-1.6"/></svg>',
+    clan: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2 18.5 6v5.2c0 4.1-2.6 7.8-6.5 9.6-3.9-1.8-6.5-5.5-6.5-9.6V6L12 3.2Z"/><path d="M9.4 12.1 11.2 14l3.5-3.8"/></svg>',
+    users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="2.8"/><path d="M3.8 18c.9-2.2 2.7-3.4 5.2-3.4s4.3 1.2 5.2 3.4"/><circle cx="16.5" cy="8.5" r="2.2"/><path d="M15.2 14.6c1.8.2 3.2 1.1 4 2.9"/></svg>',
+    coin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="7.5"/><path d="M12 8v8M9.5 10.2c.5-1 1.4-1.5 2.5-1.5 1.5 0 2.5.8 2.5 2s-1 2-2.5 2.2c-1.5.2-2.5.9-2.5 2.1 0 1.1 1.1 1.9 2.6 1.9 1.2 0 2.1-.5 2.5-1.5"/></svg>',
+    chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg>',
+    plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+    send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h12"/><path d="m12 6 6 6-6 6"/></svg>',
+    back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m14 6-6 6 6 6"/></svg>',
+  };
+
+  function icon(name, cls) {
+    return '<span class="svg-icon' + (cls ? ' ' + cls : '') + '" aria-hidden="true">' + (ICONS[name] || ICONS.sparkles) + '</span>';
+  }
+
+  function iconBox(name, tone) {
+    return '<span class="row__icon ' + (tone || 'bg-blue') + '">' + icon(name) + '</span>';
+  }
 
   /* ========== UI state ========== */
   var ui = {
@@ -148,10 +183,10 @@
   };
 
   var NAV = [
-    { id: 'home', label: 'Главная', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 11 12 4l8 7v8a1.5 1.5 0 0 1-1.5 1.5H14v-6H10v6H5.5A1.5 1.5 0 0 1 4 19v-8Z"/></svg>' },
-    { id: 'games', label: 'Игры', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="5.5" y="7" width="13" height="10" rx="3"/><path d="M9 12h6M12 9.5v5"/></svg>' },
-    { id: 'chats', label: 'Чаты', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v6A2.5 2.5 0 0 1 16.5 15H10l-4 3.5V6.5Z"/></svg>' },
-    { id: 'profile', label: 'Профиль', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="3.2"/><path d="M5 19c1.5-2.8 4-4.2 7-4.2s5.5 1.4 7 4.2"/></svg>' },
+    { id: 'home', label: 'Главная', iconKey: 'home' },
+    { id: 'games', label: 'Игры', iconKey: 'games' },
+    { id: 'chats', label: 'Чаты', iconKey: 'chat' },
+    { id: 'profile', label: 'Профиль', iconKey: 'profile' },
   ];
 
   function esc(s) {
@@ -202,7 +237,7 @@
     refs.nav.classList.toggle('is-hidden', hide);
     refs.nav.innerHTML = NAV.map(function (item) {
       return '<button type="button" class="shift-nav__item' + (ui.tab === item.id && !ui.overlay ? ' is-active' : '') + '" data-tab="' + item.id + '">' +
-        '<span class="shift-nav__icon">' + item.icon + '</span><small>' + esc(item.label) + '</small></button>';
+        '<span class="shift-nav__icon">' + icon(item.iconKey) + '</span><small>' + esc(item.label) + '</small></button>';
     }).join('');
     refs.nav.querySelectorAll('[data-tab]').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -216,42 +251,82 @@
   }
 
   /* ========== Screens ========== */
+  function renderClanCard() {
+    var clan = store.clan;
+    if (!clan || !clan.name) {
+      return (
+        '<p class="section-label">Клан</p>' +
+        '<div class="clan-card clan-card--empty glass">' +
+          '<div class="clan-card__top">' +
+            '<div class="clan-badge">' + icon('clan') + '</div>' +
+            '<div class="clan-card__copy">' +
+              '<strong>Мой клан</strong>' +
+              '<span>Пока без клана</span>' +
+            '</div>' +
+          '</div>' +
+          '<p class="clan-card__hint">Создай или вступи через бота: <em>клан создать</em></p>' +
+        '</div>'
+      );
+    }
+    var role = clan.role === 'owner' ? 'Лидер' : clan.role === 'officer' ? 'Офицер' : 'Участник';
+    return (
+      '<p class="section-label">Клан</p>' +
+      '<div class="clan-card glass">' +
+        '<div class="clan-card__top">' +
+          '<div class="clan-badge clan-badge--live">' + icon('clan') + '</div>' +
+          '<div class="clan-card__copy">' +
+            '<strong>Мой клан</strong>' +
+            '<span class="clan-name">[' + esc(clan.tag) + '] ' + esc(clan.name) + '</span>' +
+            '<small>' + esc(role) + ' · ур. ' + clan.level + '</small>' +
+          '</div>' +
+        '</div>' +
+        '<div class="clan-stats">' +
+          '<div><span class="clan-stats__icon">' + icon('users') + '</span><strong>' + clan.members + '</strong><small>игроки</small></div>' +
+          '<div><span class="clan-stats__icon">' + icon('coin') + '</span><strong>' + Number(clan.coins || 0).toLocaleString('ru-RU') + '</strong><small>казна</small></div>' +
+          '<div><span class="clan-stats__icon">' + icon('bolt') + '</span><strong>' + Number(clan.xp || 0).toLocaleString('ru-RU') + '</strong><small>XP</small></div>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
   function renderHome() {
     return (
       '<section class="screen is-active">' +
         '<p class="greeting">' + greeting() + '</p>' +
         '<h1 class="large-title">' + esc(store.user.name) + '</h1>' +
         '<div class="stats-grid">' +
-          '<div class="stat-card"><small>Стрик</small><strong>' + store.stats.streak + '</strong><span>дней подряд</span></div>' +
-          '<div class="stat-card"><small>Рекорд</small><strong>' + Math.max(store.stats.bestMath, store.stats.bestTap) + '</strong><span>лучший счёт</span></div>' +
+          '<div class="stat-card glass"><small>Стрик</small><strong>' + store.stats.streak + '</strong><span>дней подряд</span></div>' +
+          '<div class="stat-card glass"><small>Рекорд</small><strong>' + Math.max(store.stats.bestMath, store.stats.bestTap) + '</strong><span>лучший счёт</span></div>' +
         '</div>' +
+
+        renderClanCard() +
 
         '<p class="section-label">Ярлыки</p>' +
         '<div class="shortcuts">' +
-          '<button type="button" class="shortcut" data-go="ai"><span class="shortcut__icon bg-teal">✨</span><span>Shift</span></button>' +
-          '<button type="button" class="shortcut" data-go="chats"><span class="shortcut__icon bg-blue">💬</span><span>Чаты</span></button>' +
-          '<button type="button" class="shortcut" data-play="math"><span class="shortcut__icon bg-orange">🧠</span><span>Math</span></button>' +
-          '<button type="button" class="shortcut" data-play="tap"><span class="shortcut__icon bg-pink">🎯</span><span>Tap</span></button>' +
+          '<button type="button" class="shortcut" data-go="ai"><span class="shortcut__icon bg-teal">' + icon('sparkles') + '</span><span>Shift</span></button>' +
+          '<button type="button" class="shortcut" data-go="chats"><span class="shortcut__icon bg-blue">' + icon('chat') + '</span><span>Чаты</span></button>' +
+          '<button type="button" class="shortcut" data-play="math"><span class="shortcut__icon bg-orange">' + icon('brain') + '</span><span>Math</span></button>' +
+          '<button type="button" class="shortcut" data-play="tap"><span class="shortcut__icon bg-pink">' + icon('target') + '</span><span>Tap</span></button>' +
         '</div>' +
 
         '<p class="section-label">Ассистент</p>' +
-        '<div class="group">' +
+        '<div class="group glass">' +
           '<button type="button" class="row" data-open-chat="shift-ai">' +
-            '<span class="row__icon bg-teal">✨</span>' +
+            iconBox('sparkles', 'bg-teal') +
             '<span class="row__body"><span class="row__title">Shift AI</span><span class="row__sub">Спросить что угодно</span></span>' +
-            '<span class="chevron">›</span></button>' +
+            icon('chevron', 'chevron-svg') + '</button>' +
         '</div>' +
 
         '<p class="section-label">Продолжить</p>' +
-        '<div class="group">' +
+        '<div class="group glass">' +
           '<button type="button" class="row" data-play="daily">' +
-            '<span class="row__icon bg-orange">🏆</span>' +
+            iconBox('trophy', 'bg-orange') +
             '<span class="row__body"><span class="row__title">Daily Challenge</span><span class="row__sub">Math Battle · сегодня</span></span>' +
-            '<span class="chevron">›</span></button>' +
+            icon('chevron', 'chevron-svg') + '</button>' +
           '<button type="button" class="row" data-go="games">' +
-            '<span class="row__icon bg-purple">🎮</span>' +
+            iconBox('gamepad', 'bg-purple') +
             '<span class="row__body"><span class="row__title">Shift Games</span><span class="row__sub">Сыграно: ' + store.stats.gamesPlayed + '</span></span>' +
-            '<span class="chevron">›</span></button>' +
+            icon('chevron', 'chevron-svg') + '</button>' +
         '</div>' +
       '</section>'
     );
@@ -261,12 +336,12 @@
     return (
       '<section class="screen is-active">' +
         '<h1 class="large-title">Чаты</h1>' +
-        '<button type="button" class="banner" data-open-chat="shift-ai" style="margin-top:12px">' +
-          '<span class="banner__icon">✨</span>' +
+        '<button type="button" class="banner glass" data-open-chat="shift-ai" style="margin-top:12px">' +
+          '<span class="banner__icon">' + icon('sparkles') + '</span>' +
           '<span><strong>Shift AI</strong><span>Чем могу помочь?</span></span>' +
-          '<span class="chevron" style="margin-left:auto">›</span>' +
+          icon('chevron', 'chevron-svg') +
         '</button>' +
-        '<div class="group">' +
+        '<div class="group glass">' +
           '<div class="empty-state">Пока только чат со Shift.<br/>Личные диалоги появятся позже.</div>' +
         '</div>' +
       '</section>'
@@ -294,8 +369,8 @@
     return (
       '<section class="screen is-active">' +
         '<div class="thread">' +
-          '<div class="thread__bar">' +
-            '<button type="button" class="back" data-back aria-label="Назад">‹</button>' +
+          '<div class="thread__bar glass-bar">' +
+            '<button type="button" class="back" data-back aria-label="Назад">' + icon('back') + '</button>' +
             '<div class="thread__who"><strong>' + esc(chat.name) + '</strong><span>' + (isAi ? 'онлайн' : 'в сети') + '</span></div>' +
             '<span></span>' +
           '</div>' +
@@ -309,14 +384,14 @@
           (isAi ? (
             '<div class="suggest">' +
               AI_ACTIONS.slice(0, 4).map(function (a) {
-                return '<button type="button" data-ai-prompt="' + esc(a.title) + '">' + a.icon + ' ' + esc(a.title) + '</button>';
+                return '<button type="button" data-ai-prompt="' + esc(a.title) + '">' + icon(a.icon) + ' ' + esc(a.title) + '</button>';
               }).join('') +
             '</div>'
           ) : '') +
-          '<div class="composer-bar">' +
-            '<button type="button" class="tool" data-attach aria-label="Вложение">＋</button>' +
+          '<div class="composer-bar glass-bar">' +
+            '<button type="button" class="tool" data-attach aria-label="Вложение">' + icon('plus') + '</button>' +
             '<textarea id="composer-input" class="composer-field" rows="1" placeholder="Сообщение" enterkeyhint="send"></textarea>' +
-            '<button type="button" class="composer-send" id="composer-send" data-send aria-label="Отправить">↑</button>' +
+            '<button type="button" class="composer-send" id="composer-send" data-send aria-label="Отправить">' + icon('send') + '</button>' +
           '</div>' +
           '<input id="file-input" type="file" accept="image/*,.pdf,.txt" hidden />' +
         '</div>' +
@@ -328,12 +403,12 @@
     return (
       '<section class="screen is-active">' +
         '<p class="greeting">Ассистент</p>' +
-        '<h1 class="large-title">Привет! Я Shift 👋</h1>' +
+        '<h1 class="large-title">Привет! Я Shift</h1>' +
         '<p class="subtitle">Что сделаем сегодня?</p>' +
         '<div class="ai-grid" style="margin-top:18px">' +
           AI_ACTIONS.map(function (a) {
-            return '<button type="button" class="ai-tile" data-ai-start="' + a.id + '">' +
-              '<div><div class="ai-tile__icon">' + a.icon + '</div><strong>' + esc(a.title) + '</strong><span>' + esc(a.sub) + '</span></div></button>';
+            return '<button type="button" class="ai-tile glass" data-ai-start="' + a.id + '">' +
+              '<div><div class="ai-tile__icon">' + icon(a.icon) + '</div><strong>' + esc(a.title) + '</strong><span>' + esc(a.sub) + '</span></div></button>';
           }).join('') +
         '</div>' +
         '<div style="margin-top:16px">' +
@@ -350,22 +425,22 @@
         '<h1 class="large-title">Игры</h1>' +
         '<p class="subtitle">Небольшие игры, чтобы развлечься и получить награды.</p>' +
         '<div style="margin-top:16px">' +
-          '<button type="button" class="featured" data-play="daily">' +
+          '<button type="button" class="featured glass" data-play="daily">' +
             '<span class="tag">Daily Challenge</span>' +
             '<h3>Math Battle</h3>' +
             '<p>Сегодняшний челлендж · рекорд ' + store.stats.bestMath + '</p>' +
-          '<span class="btn btn--primary" style="min-height:36px;padding:0 14px;font-size:15px;border-radius:10px">Играть</span>' +
+          '<span class="btn btn--primary" style="min-height:36px;padding:0 14px;font-size:15px;border-radius:14px">Играть</span>' +
           '</button>' +
         '</div>' +
         '<p class="section-label">Все игры</p>' +
-        '<div class="group">' +
+        '<div class="group glass">' +
           GAMES.map(function (g) {
             var best = g.id === 'tap' ? store.stats.bestTap : store.stats.bestMath;
             return '<button type="button" class="row" data-play="' + g.id + '">' +
-              '<span class="game-art">' + g.emoji + '</span>' +
+              '<span class="game-art">' + icon(g.icon) + '</span>' +
               '<span class="row__body"><span class="row__title">' + esc(g.name) + '</span><span class="row__sub">' + esc(g.desc) + ' · ' + esc(g.difficulty) + '</span></span>' +
               '<span class="row__meta">' + best + '</span>' +
-              '<span class="chevron">›</span></button>';
+              icon('chevron', 'chevron-svg') + '</button>';
           }).join('') +
         '</div>' +
       '</section>'
@@ -376,7 +451,7 @@
     return (
       '<section class="screen is-active">' +
         '<h1 class="large-title">Мой Shift</h1>' +
-        '<div class="profile-card" style="margin-top:12px">' +
+        '<div class="profile-card glass" style="margin-top:12px">' +
           '<div class="avatar-xl">' + esc(store.user.avatar) + '</div>' +
           '<h2>' + esc(store.user.name) + '</h2>' +
           '<span class="id">' + esc(store.user.shiftId) + '</span>' +
@@ -386,11 +461,20 @@
             '<div><strong>' + countAchievements() + '</strong><small>Награды</small></div>' +
           '</div>' +
         '</div>' +
+        (store.clan && store.clan.name ? (
+          '<p class="section-label">Клан</p>' +
+          '<div class="group glass">' +
+            '<div class="row">' +
+              iconBox('clan', 'bg-blue') +
+              '<span class="row__body"><span class="row__title">[' + esc(store.clan.tag) + '] ' + esc(store.clan.name) + '</span>' +
+              '<span class="row__sub">Ур. ' + store.clan.level + ' · ' + store.clan.members + ' участников</span></span></div>' +
+          '</div>'
+        ) : '') +
         '<p class="section-label">Аккаунт</p>' +
-        '<div class="group">' +
-          '<button type="button" class="row" data-sheet="achievements"><span class="row__icon bg-orange">🏆</span><span class="row__body"><span class="row__title">Достижения</span><span class="row__sub">' + countAchievements() + ' из ' + ACHIEVEMENTS.length + '</span></span><span class="chevron">›</span></button>' +
-          '<button type="button" class="row" data-sheet="history"><span class="row__icon bg-purple">🎮</span><span class="row__body"><span class="row__title">История игр</span><span class="row__sub">Math ' + store.stats.bestMath + ' · Tap ' + store.stats.bestTap + '</span></span><span class="chevron">›</span></button>' +
-          '<button type="button" class="row" data-sheet="settings"><span class="row__icon bg-blue">⚙️</span><span class="row__body"><span class="row__title">Настройки</span><span class="row__sub">Хаптик и данные</span></span><span class="chevron">›</span></button>' +
+        '<div class="group glass">' +
+          '<button type="button" class="row" data-sheet="achievements">' + iconBox('trophy', 'bg-orange') + '<span class="row__body"><span class="row__title">Достижения</span><span class="row__sub">' + countAchievements() + ' из ' + ACHIEVEMENTS.length + '</span></span>' + icon('chevron', 'chevron-svg') + '</button>' +
+          '<button type="button" class="row" data-sheet="history">' + iconBox('gamepad', 'bg-purple') + '<span class="row__body"><span class="row__title">История игр</span><span class="row__sub">Math ' + store.stats.bestMath + ' · Tap ' + store.stats.bestTap + '</span></span>' + icon('chevron', 'chevron-svg') + '</button>' +
+          '<button type="button" class="row" data-sheet="settings">' + iconBox('settings', 'bg-blue') + '<span class="row__body"><span class="row__title">Настройки</span><span class="row__sub">Хаптик и данные</span></span>' + icon('chevron', 'chevron-svg') + '</button>' +
         '</div>' +
       '</section>'
     );
@@ -499,8 +583,8 @@
     if (g.over) {
       return (
         '<section class="screen is-active"><div class="play">' +
-          '<div class="result">' +
-            '<div class="emoji">🎉</div>' +
+          '<div class="result glass">' +
+            '<div class="result__icon">' + icon('trophy') + '</div>' +
             '<h2>Отлично!</h2>' +
             '<p>Ваш результат: <strong>' + g.score + '</strong></p>' +
             '<div class="actions">' +
@@ -515,11 +599,11 @@
     if (g.kind === 'tap') {
       return (
         '<section class="screen is-active"><div class="play">' +
-          '<div class="play__top"><button type="button" class="back" data-back>‹</button><h1>Quick Tap</h1><span></span></div>' +
+          '<div class="play__top"><button type="button" class="back" data-back aria-label="Назад">' + icon('back') + '</button><h1>Quick Tap</h1><span></span></div>' +
           '<div class="score-panel"><small>Тапы</small><strong id="score-value">' + g.score + '</strong></div>' +
           '<div class="progress"><i id="timer-fill" style="width:' + ((g.time / g.total) * 100) + '%"></i></div>' +
           '<div class="timer-text" id="timer-label">' + formatTime(g.time) + '</div>' +
-          '<button type="button" class="tap-zone" id="tap-zone"><span class="tap-target"></span></button>' +
+          '<button type="button" class="tap-zone glass" id="tap-zone"><span class="tap-target"></span></button>' +
         '</div></section>'
       );
     }
@@ -527,14 +611,14 @@
     var q = g.question;
     return (
       '<section class="screen is-active"><div class="play">' +
-        '<div class="play__top"><button type="button" class="back" data-back>‹</button><h1>Math Battle</h1><span></span></div>' +
+        '<div class="play__top"><button type="button" class="back" data-back aria-label="Назад">' + icon('back') + '</button><h1>Math Battle</h1><span></span></div>' +
         '<div class="score-panel"><small>Счёт</small><strong id="score-value">' + g.score + '</strong></div>' +
         '<div class="progress"><i id="timer-fill" style="width:' + ((g.time / g.total) * 100) + '%"></i></div>' +
         '<div class="timer-text" id="timer-label">' + formatTime(g.time) + '</div>' +
-        '<div class="q-card"><small>Решите пример</small><strong>' + q.a + ' ' + q.op + ' ' + q.b + ' = ?</strong></div>' +
+        '<div class="q-card glass"><small>Решите пример</small><strong>' + q.a + ' ' + q.op + ' ' + q.b + ' = ?</strong></div>' +
         '<div class="answers">' +
           q.options.map(function (opt) {
-            return '<button type="button" class="answer" data-answer="' + opt + '">' + opt + '</button>';
+            return '<button type="button" class="answer glass" data-answer="' + opt + '">' + opt + '</button>';
           }).join('') +
         '</div>' +
       '</div></section>'
@@ -633,7 +717,7 @@
           '<div class="group">' +
             ACHIEVEMENTS.map(function (a) {
               var on = !!store.achievements[a.id];
-              return '<div class="row"><span class="row__icon ' + (on ? 'bg-orange' : 'bg-blue') + '" style="opacity:' + (on ? 1 : 0.45) + '">' + a.icon + '</span>' +
+              return '<div class="row" style="opacity:' + (on ? '1' : '0.55') + '">' + iconBox(a.icon, on ? 'bg-orange' : 'bg-blue') +
                 '<span class="row__body"><span class="row__title">' + esc(a.title) + '</span><span class="row__sub">' + esc(a.sub) + (on ? ' · получено' : '') + '</span></span></div>';
             }).join('') +
           '</div>' +
@@ -929,6 +1013,14 @@
       store.user.shiftId = '@' + name.trim().toLowerCase().replace(/\s+/g, '');
       saveStore();
     }
+    var streak = params.get('streak');
+    if (streak != null && streak !== '') {
+      var n = parseInt(streak, 10);
+      if (!isNaN(n) && n >= 0) {
+        store.stats.streak = n;
+        saveStore();
+      }
+    }
     if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
       var u = tg.initDataUnsafe.user;
       if (u.first_name) {
@@ -940,9 +1032,26 @@
     }
   }
 
+  function hydrateClanFromUrl() {
+    var params = new URLSearchParams(window.location.search);
+    var name = params.get('clan_name');
+    if (!name) return;
+    store.clan = {
+      name: name,
+      tag: params.get('clan_tag') || 'CLAN',
+      level: parseInt(params.get('clan_level') || '1', 10) || 1,
+      coins: parseInt(params.get('clan_coins') || '0', 10) || 0,
+      members: parseInt(params.get('clan_members') || '1', 10) || 1,
+      xp: parseInt(params.get('clan_xp') || '0', 10) || 0,
+      role: params.get('clan_role') || 'member',
+    };
+    saveStore();
+  }
+
   function boot() {
     initTelegram({ onBack: goBack });
     hydrateUser();
+    hydrateClanFromUrl();
     route();
     refs.root.classList.add('is-booted');
   }
