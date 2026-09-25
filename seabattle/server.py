@@ -333,10 +333,14 @@ def create_app() -> web.Application:
     app.router.add_post("/api/sea/shoot", shoot)
     app.router.add_get("/api/sea/room/{room_id}", room_state)
     app.router.add_get("/ws/sea", ws_handler)
+    from seabattle.fleets_api import register_eco_routes
+    register_eco_routes(app)
     return app
 
 
 async def start_game_api() -> web.AppRunner:
+    from seabattle import eco
+    await eco.ensure_eco_tables()
     app = create_app()
     runner = web.AppRunner(app)
     await runner.setup()

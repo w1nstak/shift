@@ -682,8 +682,49 @@ body.sb-active .shift-nav { display: none !important; }
   border-color: rgba(100, 210, 255, 0.35);
 }
 
-@media (max-width: 390px) {
-  .sb-grid { --gap: 2px; border-radius: 16px; padding: 4px; }
-  .sb-cell { border-radius: 4px; }
-  .sb-title { font-size: 24px; }
+.sb-hub {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 16px;
 }
+.sb-hub-btn {
+  min-height: 44px;
+  padding: 10px 6px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 0.5px solid rgba(255, 255, 255, 0.12);
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+.sb-mission {
+  padding: 14px;
+  border-radius: 18px;
+  margin-bottom: 10px;
+  text-align: left;
+}
+.sb-mbar {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.1);
+  margin: 8px 0;
+  overflow: hidden;
+}
+.sb-mbar > i { display: block; height: 100%; background: #0A84FF; }
+.sb-mission__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.sb-mission__row button {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: #0A84FF;
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+}
+.sb-done { color: #34C759; font-weight: 700; }
+

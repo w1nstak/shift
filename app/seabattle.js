@@ -24,6 +24,9 @@
     photoUrl: '',
     avatarLetter: 'И',
     level: 1,
+    profileEco: null,
+    missions: null,
+    screenExtra: null,
     api: '',
     ws: null,
     placing: null, // { id, horizontal }
@@ -72,6 +75,7 @@
   }
 
   async function api(path, opts) {
+    if (hooks.apiFetch) return hooks.apiFetch(path, opts);
     var base = apiBase();
     if (!base) throw new Error('NO_API');
     var res = await fetch(base + path, Object.assign({ headers: headers() }, opts || {}));
@@ -489,6 +493,9 @@
   }
 
   function renderLobby() {
+    var league = (state.profileEco && state.profileEco.league) || 'Bronze';
+    var rating = (state.profileEco && state.profileEco.rating) || 1000;
+    var streak = (state.profileEco && state.profileEco.streak) || 0;
     return (
       '<div class="sb-screen sb-lobby">' +
         '<div class="sb-top">' +
@@ -498,20 +505,27 @@
         '</div>' +
         '<div class="sb-hero-water" aria-hidden="true"><div class="sb-wave"></div><div class="sb-particles"></div></div>' +
         '<h1 class="sb-title">⚓ Shift Sea Battle</h1>' +
-        '<p class="sb-sub">Онлайн морской бой · ставка в S-Coins</p>' +
+        '<p class="sb-sub">' + esc(league) + ' · ' + rating + ' MMR' + (streak > 1 ? ' · 🔥 ' + streak : '') + '</p>' +
         '<div class="sb-modes">' +
           '<button type="button" class="sb-mode glass" data-sb-mode="quick">' +
-            '<strong>Quick Battle</strong><span>Найти соперника по ставке</span></button>' +
+            '<strong>QUICK BATTLE</strong><span>Найти соперника по ставке</span></button>' +
           '<button type="button" class="sb-mode glass" data-sb-mode="private">' +
-            '<strong>Private Game</strong><span>Пригласи друга по коду</span></button>' +
+            '<strong>PRIVATE GAME</strong><span>Invite link · Telegram</span></button>' +
           '<button type="button" class="sb-mode glass" data-sb-mode="practice">' +
             '<strong>vs Shift AI</strong><span>Тренировка с ботом</span></button>' +
         '</div>' +
-        '<div class="sb-secondary">' +
-          '<button type="button" class="sb-link" data-sb-go="board">🏆 Leaderboard</button>' +
-          '<button type="button" class="sb-link" data-sb-go="profile">Профиль флота</button>' +
+        '<div class="sb-hub">' +
+          '<button type="button" class="sb-hub-btn" data-sb-go="board">🏆 Rank</button>' +
+          '<button type="button" class="sb-hub-btn" data-sb-missions>🎯 Missions</button>' +
+          '<button type="button" class="sb-hub-btn" data-sb-season>📅 Season</button>' +
+          '<button type="button" class="sb-hub-btn" data-sb-fleets>⚓ Fleets</button>' +
+          '<button type="button" class="sb-hub-btn" data-sb-daily>🎁 Daily</button>' +
+          '<button type="button" class="sb-hub-btn" data-sb-wallet>S History</button>' +
         '</div>' +
-        (apiBase() ? '' : '<p class="sb-warn">API не подключён — доступна локальная тренировка. Задай GAME_API_URL у бота.</p>') +
+        '<div class="sb-secondary">' +
+          '<button type="button" class="sb-link" data-sb-go="profile">Fleet Profile</button>' +
+        '</div>' +
+        (apiBase() ? '' : '<p class="sb-warn">API не подключён — локальная тренировка. Задай GAME_API_URL.</p>') +
       '</div>'
     );
   }
@@ -843,11 +857,63 @@
     else if (state.screen === 'result') html = renderResult();
     else if (state.screen === 'board') html = renderBoard();
     else if (state.screen === 'profile') html = renderProfile();
+    else if (state.screen === 'missions') html = renderMissions();
+    else if (state.screen === 'season') html = renderSeason();
+    else if (state.screen === 'wallet') html = renderWallet();
     else html = renderLobby();
     host.innerHTML = html;
     bind();
   }
 
+  function renderMissions() {
+    var items = (state.missions && state.missions.missions) || [];
+    var rows = items.map(function (m) {
+      var pct = Math.min(100, Math.round((m.current / m.target) * 100));
+      return '<div class="sb-mission glass"><strong>' + esc(m.title) + '</strong>' +
+        '<div class="sb-mbar"><i style="width:' + pct + '%"></i></div>' +
+        '<div class="sb-mission__row"><small>' + m.current + '/' + m.target + ' · +' + m.reward_coins + ' S</small>' +
+        (m.done && !m.claimed ? '<button type="button" data-sb-claim="' + m.id + '">CLAIM</button>' : (m.claimed ? '<span class="sb-done">✓</span>' : '')) +
+        '</div></div>';
+    }).join('') || '<p class="sb-sub">Нет миссий</p>';
+    return (
+      '<div class="sb-screen">' +
+        '<div class="sb-top"><button type="button" class="sb-back" data-sb-go="lobby">' + backSvg() + '</button>' +
+          '<div class="sb-brand"><strong>Daily Missions</strong></div>' + coinPill() + '</div>' +
+        rows +
+      '</div>'
+    );
+  }
+
+  function renderSeason() {
+    return (
+      '<div class="sb-screen">' +
+        '<div class="sb-top"><button type="button" class="sb-back" data-sb-go="lobby">' + backSvg() + '</button>' +
+          '<div class="sb-brand"><strong>SHIFT SEASON 01</strong></div>' + coinPill() + '</div>' +
+        '<div class="sb-confirm glass">' +
+          '<div class="sb-confirm__row"><span>LEVEL</span><strong>' + ((state.profileEco && state.profileEco.season_level) || 1) + '</strong></div>' +
+          '<div class="sb-confirm__row"><span>XP</span><strong>' + ((state.profileEco && state.profileEco.season_xp) || 0) + ' / 100</strong></div>' +
+          '<p>Battle Pass rewards: S-Coins, skins, frames, badges.</p>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function renderWallet() {
+    var rows = (state.wallet || []).map(function (t) {
+      var sign = t.amount > 0 ? '+' : '';
+      return '<div class="sb-lb-row"><span class="sb-lb-body"><strong>' + esc(t.kind) + '</strong><small>' + new Date((t.created_at || 0) * 1000).toLocaleString('ru-RU') + '</small></span>' +
+        '<span class="sb-lb-meta">' + sign + t.amount + ' S</span></div>';
+    }).join('') || '<p class="sb-sub">Пока нет транзакций</p>';
+    return (
+      '<div class="sb-screen">' +
+        '<div class="sb-top"><button type="button" class="sb-back" data-sb-go="lobby">' + backSvg() + '</button>' +
+          '<div class="sb-brand"><strong>S-Coins</strong></div>' + coinPill() + '</div>' +
+        '<div class="sb-lb glass">' + rows + '</div>' +
+      '</div>'
+    );
+  }
+
+  // Event binding
   function bind() {
     var host = document.getElementById('seabattle-host');
     if (!host) return;
@@ -944,6 +1010,70 @@
         loadLeaderboard();
       });
     });
+
+    var missionsBtn = host.querySelector('[data-sb-missions]');
+    if (missionsBtn) missionsBtn.addEventListener('click', loadMissions);
+    var seasonBtn = host.querySelector('[data-sb-season]');
+    if (seasonBtn) seasonBtn.addEventListener('click', function () { state.screen = 'season'; render(); });
+    var fleetsBtn = host.querySelector('[data-sb-fleets]');
+    if (fleetsBtn) fleetsBtn.addEventListener('click', function () {
+      close();
+      if (hooks.onOpenFleets) hooks.onOpenFleets();
+    });
+    var dailyBtn = host.querySelector('[data-sb-daily]');
+    if (dailyBtn) dailyBtn.addEventListener('click', claimDaily);
+    var walletBtn = host.querySelector('[data-sb-wallet]');
+    if (walletBtn) walletBtn.addEventListener('click', loadWallet);
+    host.querySelectorAll('[data-sb-claim]').forEach(function (el) {
+      el.addEventListener('click', function () { claimMission(el.dataset.sbClaim); });
+    });
+  }
+
+  async function loadMissions() {
+    try {
+      if (hooks.apiFetch) state.missions = await hooks.apiFetch('/api/missions');
+      else state.missions = await api('/api/missions');
+      state.screen = 'missions';
+      render();
+    } catch (e) {
+      hooks.toast(e.message || 'Ошибка');
+    }
+  }
+
+  async function claimMission(id) {
+    try {
+      var fn = hooks.apiFetch || api;
+      var res = await fn('/api/missions/claim', { method: 'POST', body: JSON.stringify({ id: id }) });
+      if (res.balance != null) state.coins = res.balance;
+      hooks.toast('+' + res.reward_coins + ' S');
+      loadMissions();
+    } catch (e) {
+      hooks.toast(e.message || 'Ошибка');
+    }
+  }
+
+  async function claimDaily() {
+    try {
+      var fn = hooks.apiFetch || api;
+      var res = await fn('/api/daily', { method: 'POST', body: '{}' });
+      state.coins = res.balance;
+      hooks.toast('Daily +' + res.reward + ' S');
+      render();
+    } catch (e) {
+      hooks.toast(e.message || 'Ошибка');
+    }
+  }
+
+  async function loadWallet() {
+    try {
+      var fn = hooks.apiFetch || api;
+      var data = await fn('/api/wallet');
+      state.wallet = data.transactions || [];
+      state.screen = 'wallet';
+      render();
+    } catch (e) {
+      hooks.toast(e.message || 'Ошибка');
+    }
   }
 
   async function beginMatch() {
@@ -1092,18 +1222,32 @@
   async function loadLeaderboard() {
     state.screen = 'board';
     render();
-    if (!apiBase()) {
+    if (!apiBase() && !hooks.apiFetch) {
       state.leaderboard = [];
       render();
       return;
     }
     try {
-      var data = await api('/api/sea/leaderboard?period=' + state.boardPeriod);
-      state.leaderboard = data.rows || [];
+      var data = await api('/api/rating');
+      state.leaderboard = (data.rows || []).map(function (r) {
+        return {
+          rank: r.rank,
+          name: r.name,
+          wins: r.rating,
+          win_rate: r.league,
+          coins_won: r.rating,
+        };
+      });
       render();
     } catch (e) {
-      state.leaderboard = [];
-      render();
+      try {
+        var data2 = await api('/api/sea/leaderboard?period=' + state.boardPeriod);
+        state.leaderboard = data2.rows || [];
+        render();
+      } catch (e2) {
+        state.leaderboard = [];
+        render();
+      }
     }
   }
 
@@ -1151,6 +1295,7 @@
     state.photoUrl = opts.photoUrl || state.photoUrl || '';
     state.avatarLetter = opts.avatar || state.avatarLetter || (state.name || '?')[0];
     state.level = opts.level || state.level;
+    state.profileEco = opts.profileEco || state.profileEco;
     state.api = opts.api || state.api || '';
     state.room = null;
     state.local = false;

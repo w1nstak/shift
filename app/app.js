@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var STORE_KEY = 'shift-app-v2';
+  var STORE_KEY = 'shift-app-v3';
 
   /* ========== Telegram ========== */
   var tg = null;
@@ -65,6 +65,10 @@
       chats: null,
       clan: null,
       api: '',
+      fleetChat: null,
+      challenges: [],
+      profileEco: null,
+      notifications: [],
     };
   }
 
@@ -82,6 +86,10 @@
         messages: Object.assign({}, parsed.messages || {}),
         clan: parsed.clan || null,
         api: parsed.api || '',
+        fleetChat: parsed.fleetChat || null,
+        challenges: parsed.challenges || [],
+        profileEco: parsed.profileEco || null,
+        notifications: parsed.notifications || [],
       });
     } catch (e) {
       return defaultStore();
@@ -240,6 +248,100 @@
     return true;
   }
 
+  function apiBase() {
+    return (store.api || '').replace(/\/$/, '');
+  }
+
+  async function shiftApi(path, opts) {
+    var base = apiBase();
+    if (!base) throw new Error('API не подключён');
+    var h = { 'Content-Type': 'application/json' };
+    if (tg && tg.initData) h['X-Telegram-Init-Data'] = tg.initData;
+    h['X-Shift-User'] = String(store.user.userId || 0);
+    h['X-Shift-Chat'] = String(store.user.chatId || store.user.userId || 0);
+    h['X-Shift-Name'] = store.user.name || 'Игрок';
+    h['X-Shift-Level'] = String(store.user.level || 1);
+    if (store.user.photoUrl) h['X-Shift-Photo'] = store.user.photoUrl;
+    var res = await fetch(base + path, Object.assign({ headers: h }, opts || {}));
+    var data = await res.json().catch(function () { return { ok: false, error: 'Bad response' }; });
+    if (!res.ok || data.ok === false) throw new Error(data.error || ('HTTP ' + res.status));
+    return data;
+  }
+
+  function applyFleetChat(fleetChat, fleet) {
+    // remove old fleet chats
+    store.chats = (store.chats || []).filter(function (c) { return c.type !== 'fleet'; });
+    if (fleetChat) {
+      store.chats.unshift({
+        id: fleetChat.chat_id || ('fleet-' + fleetChat.clan_id),
+        name: '⚓ ' + (fleetChat.name || 'Fleet'),
+        preview: fleetChat.preview || 'Clan Chat',
+        time: 'сейчас',
+        unread: 0,
+        type: 'fleet',
+        clanId: fleetChat.clan_id,
+        members: fleetChat.members,
+        level: fleetChat.level,
+        tag: fleetChat.tag,
+      });
+      if (fleet) {
+        store.clan = {
+          name: fleet.name,
+          tag: fleet.tag,
+          level: fleet.level || 1,
+          coins: fleet.coins || 0,
+          members: fleetChat.members || 0,
+          xp: fleet.xp || 0,
+          role: 'member',
+          clan_id: fleet.clan_id,
+        };
+      }
+      store.fleetChat = fleetChat;
+    } else {
+      store.fleetChat = null;
+      // keep URL clan or clear mini-app fleet
+      if (store.clan && store.clan.clan_id) store.clan = null;
+    }
+    saveStore();
+    route();
+  }
+
+  async function syncEco() {
+    if (!apiBase()) return;
+    try {
+      var data = await shiftApi('/api/shift/home');
+      if (data.user) {
+        store.user.coins = data.user.coins;
+        if (data.user.name) store.user.name = data.user.name;
+        if (data.user.photo_url) store.user.photoUrl = data.user.photo_url;
+      }
+      store.profileEco = data.profile || null;
+      store.notifications = data.notifications || [];
+      if (data.fleet_chat) applyFleetChat(data.fleet_chat, data.fleet);
+      else if (!data.fleet) {
+        store.chats = (store.chats || []).filter(function (c) { return c.type !== 'fleet'; });
+        store.fleetChat = null;
+      }
+      if (data.fleet) {
+        store.clan = {
+          name: data.fleet.name,
+          tag: data.fleet.tag,
+          level: data.fleet.level || 1,
+          coins: data.fleet.coins || 0,
+          members: data.fleet_chat ? data.fleet_chat.members : 0,
+          xp: data.fleet.xp || 0,
+          role: 'member',
+          clan_id: data.fleet.clan_id,
+        };
+      }
+      saveStore();
+      var ch = await shiftApi('/api/challenges');
+      store.challenges = ch.challenges || [];
+      saveStore();
+      route();
+    } catch (e) {}
+  }
+
   function toast(text) {
     var el = document.createElement('div');
     el.className = 'toast';
@@ -301,27 +403,27 @@
     var clan = store.clan;
     if (!clan || !clan.name) {
       return (
-        '<p class="section-label">Клан</p>' +
-        '<div class="clan-card clan-card--empty glass">' +
+        '<p class="section-label">Shift Fleets</p>' +
+        '<div class="clan-card clan-card--empty glass" data-open-fleets>' +
           '<div class="clan-card__top">' +
             '<div class="clan-badge">' + icon('clan') + '</div>' +
             '<div class="clan-card__copy">' +
-              '<strong>Мой клан</strong>' +
-              '<span>Пока без клана</span>' +
+              '<strong>Мой флот</strong>' +
+              '<span>Пока без флота</span>' +
             '</div>' +
           '</div>' +
-          '<p class="clan-card__hint">Создай или вступи через бота: <em>клан создать</em></p>' +
+          '<p class="clan-card__hint">Создай флот — Clan Chat появится автоматически</p>' +
         '</div>'
       );
     }
     var role = clan.role === 'owner' ? 'Лидер' : clan.role === 'officer' ? 'Офицер' : 'Участник';
     return (
-      '<p class="section-label">Клан</p>' +
-      '<div class="clan-card glass">' +
+      '<p class="section-label">Shift Fleets</p>' +
+      '<div class="clan-card glass" data-open-fleets>' +
         '<div class="clan-card__top">' +
           '<div class="clan-badge clan-badge--live">' + icon('clan') + '</div>' +
           '<div class="clan-card__copy">' +
-            '<strong>Мой клан</strong>' +
+            '<strong>Мой флот</strong>' +
             '<span class="clan-name">[' + esc(clan.tag) + '] ' + esc(clan.name) + '</span>' +
             '<small>' + esc(role) + ' · ур. ' + clan.level + '</small>' +
           '</div>' +
@@ -341,8 +443,8 @@
         '<p class="greeting">' + greeting() + '</p>' +
         '<h1 class="large-title">' + esc(store.user.name) + '</h1>' +
         '<div class="stats-grid">' +
-          '<div class="stat-card glass"><small>Стрик</small><strong>' + store.stats.streak + '</strong><span>дней подряд</span></div>' +
-          '<div class="stat-card glass"><small>Рекорд</small><strong>' + Math.max(store.stats.bestMath, store.stats.bestTap) + '</strong><span>лучший счёт</span></div>' +
+          '<div class="stat-card glass"><small>Лига</small><strong>' + esc((store.profileEco && store.profileEco.league) || 'Bronze') + '</strong><span>' + ((store.profileEco && store.profileEco.rating) || 1000) + ' MMR</span></div>' +
+          '<div class="stat-card glass"><small>S-Coins</small><strong>' + Number(store.user.coins || 0).toLocaleString('ru-RU') + '</strong><span>баланс</span></div>' +
         '</div>' +
 
         renderClanCard() +
@@ -379,6 +481,24 @@
   }
 
   function renderChats() {
+    var fleetRows = (store.chats || []).filter(function (c) { return c.type === 'fleet'; }).map(function (c) {
+      return '<button type="button" class="row fleet-chat-row" data-open-chat="' + esc(c.id) + '">' +
+        iconBox('clan', 'bg-blue') +
+        '<span class="row__body"><span class="row__title">' + esc(c.name) + '</span>' +
+        '<span class="row__sub">' + (c.members || 0) + ' members · ' + esc(c.preview) + '</span></span>' +
+        icon('chevron', 'chevron-svg') + '</button>';
+    }).join('');
+
+    var challenges = (store.challenges || []).filter(function (c) { return c.to_id === store.user.userId && c.status === 'pending'; }).map(function (c) {
+      return '<div class="challenge-card">' +
+        '<strong>⚓ SHIFT SEA BATTLE</strong>' +
+        '<p>Challenge · Entry: ' + c.stake + ' S</p>' +
+        '<div class="challenge-card__actions">' +
+          '<button type="button" class="accept" data-challenge-accept="' + c.id + '">ACCEPT</button>' +
+          '<button type="button" class="decline" data-challenge-decline="' + c.id + '">DECLINE</button>' +
+        '</div></div>';
+    }).join('');
+
     return (
       '<section class="screen is-active">' +
         '<h1 class="large-title">Чаты</h1>' +
@@ -387,8 +507,13 @@
           '<span><strong>Shift AI</strong><span>Чем могу помочь?</span></span>' +
           icon('chevron', 'chevron-svg') +
         '</button>' +
+        (challenges || '') +
+        (fleetRows
+          ? '<p class="section-label">Shift Fleets</p><div class="group glass">' + fleetRows + '</div>'
+          : '<div class="group glass"><div class="empty-state">Нет флота.<br/>Создай Shift Fleet — Clan Chat появится здесь.</div></div>') +
+        '<p class="section-label">Личные</p>' +
         '<div class="group glass">' +
-          '<div class="empty-state">Пока только чат со Shift.<br/>Личные диалоги появятся позже.</div>' +
+          '<div class="empty-state">Личные диалоги появятся с друзьями.</div>' +
         '</div>' +
       '</section>'
     );
@@ -398,6 +523,8 @@
     if (store.messages[chatId] && store.messages[chatId].length) return store.messages[chatId];
     if (chatId === 'shift-ai') {
       store.messages[chatId] = [{ from: 'shift', text: 'Привет! Я Shift 👋\nЧто сделаем сегодня?' }];
+    } else if (String(chatId).indexOf('fleet-') === 0) {
+      store.messages[chatId] = [{ from: 'shift', text: '⚓ Fleet chat online.\nСообщения синхронизируются с сервером.' }];
     } else {
       var chat = store.chats.find(function (c) { return c.id === chatId; });
       store.messages[chatId] = [
@@ -411,19 +538,24 @@
   function renderChatThread() {
     var chat = store.chats.find(function (c) { return c.id === ui.chatId; }) || { name: 'Чат', avatar: '?' };
     var isAi = ui.chatId === 'shift-ai';
+    var isFleet = String(ui.chatId || '').indexOf('fleet-') === 0;
     var msgs = ensureMessages(ui.chatId);
     return (
       '<section class="screen is-active">' +
         '<div class="thread">' +
           '<div class="thread__bar glass-bar">' +
             '<button type="button" class="back" data-back aria-label="Назад">' + icon('back') + '</button>' +
-            '<div class="thread__who"><strong>' + esc(chat.name) + '</strong><span>' + (isAi ? 'онлайн' : 'в сети') + '</span></div>' +
+            '<div class="thread__who"><strong>' + esc(chat.name) + '</strong><span>' +
+              (isFleet ? ('Members: ' + (chat.members || 0) + ' · Lvl ' + (chat.level || 1)) : (isAi ? 'онлайн' : 'в сети')) +
+            '</span></div>' +
             '<span></span>' +
           '</div>' +
+          (isFleet ? '<div class="suggest"><button type="button" data-open-fleets>Clan Profile</button><button type="button" data-play="sea">Sea Battle</button></div>' : '') +
           '<div class="messages" id="msg-list">' +
             msgs.map(function (m) {
               var cls = m.from === 'user' ? 'bubble bubble--me' : 'bubble bubble--them';
-              return '<div class="' + cls + '">' + esc(m.text).replace(/\n/g, '<br/>') + '</div>';
+              var prefix = m.name && m.from !== 'user' ? '<small style="opacity:.6">' + esc(m.name) + '</small><br/>' : '';
+              return '<div class="' + cls + '">' + prefix + esc(m.text).replace(/\n/g, '<br/>') + '</div>';
             }).join('') +
             (ui.typing ? '<div class="typing">Shift печатает…</div>' : '') +
           '</div>' +
@@ -694,18 +826,85 @@
       avatar: store.user.avatar || '',
       level: store.user.level || Number(params.get('level') || 1),
       api: store.api || params.get('api') || '',
+      profileEco: store.profileEco,
       hooks: {
         haptic: haptic,
         toast: toast,
         getTg: getTg,
+        apiFetch: shiftApi,
+        onOpenFleets: openFleets,
         onExit: function () {
           ui.overlay = null;
           ui.tab = 'games';
+          syncEco();
           route();
         },
       },
     });
   }
+
+  function openFleets() {
+    if (!window.ShiftFleets) {
+      toast('Fleets не загружен');
+      return;
+    }
+    ShiftFleets.open({
+      api: store.api,
+      userId: store.user.userId,
+      chatId: store.user.chatId,
+      name: store.user.name,
+      fleet: store.clan && store.clan.clan_id ? store.clan : null,
+      hooks: {
+        haptic: haptic,
+        toast: toast,
+        getTg: getTg,
+        apiFetch: shiftApi,
+        onFleetChanged: applyFleetChat,
+        onOpenFleetChat: function (fleet) {
+          var id = 'fleet-' + (fleet.clan_id || fleet.clanId);
+          if (!(store.chats || []).some(function (c) { return c.id === id; })) {
+            applyFleetChat({
+              clan_id: fleet.clan_id,
+              name: fleet.name,
+              tag: fleet.tag,
+              members: fleet.members_count || fleet.members || 0,
+              level: fleet.level,
+              preview: 'Clan Chat',
+              chat_id: id,
+            }, fleet);
+          }
+          ui.chatId = id;
+          ui.overlay = 'chat';
+          ui.tab = 'chats';
+          route();
+          loadFleetMessages(id);
+        },
+        onExit: function () {
+          syncEco();
+          route();
+        },
+      },
+    });
+  }
+
+  async function respondChallenge(id, accept) {
+    try {
+      var data = await shiftApi('/api/challenges/respond', {
+        method: 'POST',
+        body: JSON.stringify({ id: id, accept: accept }),
+      });
+      if (accept && data.room) {
+        toast('Battle ready');
+        openSeaBattle();
+      } else {
+        toast(accept ? 'Accepted' : 'Declined');
+      }
+      syncEco();
+    } catch (e) {
+      toast(e.message || 'Ошибка');
+    }
+  }
+
 
   /* ========== Chat logic ========== */
   function shiftReply(text) {
@@ -728,12 +927,21 @@
   function sendChatMessage(text) {
     if (!ui.chatId || !text) return;
     var list = ensureMessages(ui.chatId);
-    list.push({ from: 'user', text: text });
+    list.push({ from: 'user', text: text, name: store.user.name });
     store.stats.messages += 1;
     if (store.stats.messages >= 10) unlock('chatty');
     updateChatPreview(ui.chatId, text);
     saveStore();
     haptic('light');
+
+    if (String(ui.chatId).indexOf('fleet-') === 0) {
+      shiftApi('/api/fleets/send', { method: 'POST', body: JSON.stringify({ text: text }) })
+        .then(function () { return loadFleetMessages(ui.chatId); })
+        .catch(function (e) { toast(e.message || 'Ошибка чата'); });
+      route();
+      scrollMessages();
+      return;
+    }
 
     if (ui.chatId === 'shift-ai') {
       ui.typing = true;
@@ -760,6 +968,28 @@
     }, 500);
     route();
     scrollMessages();
+  }
+
+  async function loadFleetMessages(chatId) {
+    if (!apiBase()) return;
+    try {
+      var data = await shiftApi('/api/fleets/messages');
+      store.messages[chatId] = (data.messages || []).map(function (m) {
+        return {
+          from: m.user_id === store.user.userId ? 'user' : 'shift',
+          text: m.text,
+          name: m.name,
+        };
+      });
+      if (!store.messages[chatId].length) {
+        store.messages[chatId] = [{ from: 'shift', text: '⚓ Fleet chat ready.' }];
+      }
+      saveStore();
+      if (ui.overlay === 'chat' && ui.chatId === chatId) {
+        route();
+        scrollMessages();
+      }
+    } catch (e) {}
   }
 
   function scrollMessages() {
@@ -886,6 +1116,20 @@
         ui.overlay = 'chat';
         ui.navDir = 'push';
         route();
+        if (String(ui.chatId).indexOf('fleet-') === 0) loadFleetMessages(ui.chatId);
+      });
+    });
+    refs.host.querySelectorAll('[data-open-fleets]').forEach(function (el) {
+      el.addEventListener('click', function () { openFleets(); });
+    });
+    refs.host.querySelectorAll('[data-challenge-accept]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        respondChallenge(Number(el.dataset.challengeAccept), true);
+      });
+    });
+    refs.host.querySelectorAll('[data-challenge-decline]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        respondChallenge(Number(el.dataset.challengeDecline), false);
       });
     });
     refs.host.querySelectorAll('[data-play]').forEach(function (el) {
@@ -1042,6 +1286,9 @@
 
   function goBack() {
     haptic('light');
+    if (window.ShiftFleets && ShiftFleets.isOpen && ShiftFleets.isOpen()) {
+      if (ShiftFleets.handleBack()) return;
+    }
     if (window.ShiftSeaBattle && ShiftSeaBattle.isOpen && ShiftSeaBattle.isOpen()) {
       if (ShiftSeaBattle.handleBack()) return;
     }
@@ -1143,6 +1390,7 @@
     hydrateClanFromUrl();
     route();
     refs.root.classList.add('is-booted');
+    syncEco();
   }
 
   boot();

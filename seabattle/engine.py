@@ -266,6 +266,11 @@ class SeaBattleEngine:
             await self._ensure_balance(p.user_id, p.chat_id, room.stake)
         for p in humans:
             await db.add_coins(p.user_id, p.chat_id, -room.stake)
+            try:
+                from seabattle import eco
+                await eco.add_wallet_tx(p.user_id, p.chat_id, -room.stake, "battle_entry", room.room_id)
+            except Exception:
+                pass
         # practice: bot side stake comes from pot illusion — player still pays stake, wins 2x or loses stake
         room.escrowed = True
         room.pot = room.stake * 2
@@ -399,6 +404,8 @@ class SeaBattleEngine:
         loser = room.opponent(room.winner_id)
         if not winner:
             return
+        from seabattle import eco
+
         # pay pot to winner (if bot wins, stake stays burned / bank)
         if not winner.is_bot:
             await db.add_coins(winner.user_id, winner.chat_id, room.pot)
@@ -407,11 +414,67 @@ class SeaBattleEngine:
             await db.record_seabattle_result(
                 winner.user_id, winner.chat_id, won=True, stake=room.stake, shots=winner.shots, hits=winner.hits
             )
+            await eco.add_wallet_tx(winner.user_id, winner.chat_id, room.pot, "battle_win", room.room_id)
         if loser and not loser.is_bot:
             await db.record_game(loser.user_id, loser.chat_id, won=False)
             await db.record_seabattle_result(
                 loser.user_id, loser.chat_id, won=False, stake=room.stake, shots=loser.shots, hits=loser.hits
             )
+
+        # rating + streak
+        try:
+            if not winner.is_bot and loser and loser.is_bot:
+                rating = await eco.apply_match_rating(
+                    winner.user_id, -1, room.chat_id, room.stake,
+                    winner.shots, winner.hits, won_vs_bot=True,
+                )
+                room.last_event = {**(room.last_event or {}), "rating": rating}
+            elif not winner.is_bot and loser and not loser.is_bot:
+                rating = await eco.apply_match_rating(
+                    winner.user_id, loser.user_id, room.chat_id, room.stake,
+                    winner.shots, winner.hits, won_vs_bot=False,
+                )
+                room.last_event = {**(room.last_event or {}), "rating": rating}
+            elif winner.is_bot and loser and not loser.is_bot:
+                # human lost to bot — only reset streak / small XP via loser path
+                rating = await eco.apply_match_rating(
+                    winner.user_id, loser.user_id, room.chat_id, room.stake,
+                    0, 0, won_vs_bot=True,
+                )
+                # undo bot profile pollution: only care about loser side
+                room.last_event = {**(room.last_event or {}), "rating": rating}
+        except Exception:
+            log.exception("rating settle failed")
+
+        # replay stub from last shots — store room result meta
+        try:
+            await eco.save_replay(
+                room.room_id,
+                room.chat_id,
+                room.stake,
+                room.winner_id,
+                {
+                    "players": [
+                        {"user_id": p.user_id, "name": p.name, "shots": p.shots, "hits": p.hits, "is_bot": p.is_bot}
+                        for p in room.players.values()
+                    ],
+                    "winner_id": room.winner_id,
+                    "stake": room.stake,
+                    "events": [],
+                },
+            )
+        except Exception:
+            log.exception("replay save failed")
+
+        # clan XP for winner fleet
+        try:
+            if not winner.is_bot:
+                clan = await db.get_user_clan(winner.user_id, winner.chat_id)
+                if clan:
+                    await db.add_clan_xp(clan["clan_id"], 15)
+        except Exception:
+            pass
+
 
     async def leave(self, user_id: int) -> None:
         async with self._lock:
