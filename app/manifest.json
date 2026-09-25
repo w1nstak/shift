@@ -3,9 +3,10 @@
   "short_name": "Shift",
   "start_url": "./index.html",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#1769FF",
   "theme_color": "#1769FF",
-  "description": "Shift — AI, чаты, игры и экосистема в Telegram",
+  "description": "Shift — приложение для чатов, AI и игр",
   "icons": [
     {
       "src": "icon.svg",

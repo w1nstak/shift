@@ -2,37 +2,28 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#1769FF" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta name="apple-mobile-web-app-title" content="Shift" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
     <link rel="manifest" href="manifest.json" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icon.svg" />
     <title>Shift</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="styles.css?v=shift1" />
+    <link rel="stylesheet" href="styles.css?v=shift-ios1" />
   </head>
   <body>
     <div id="shift-root" class="shift-app">
-      <div class="shift-ambient" aria-hidden="true">
-        <span class="orb orb--a"></span>
-        <span class="orb orb--b"></span>
-        <span class="orb orb--c"></span>
-        <span class="blob blob--1"></span>
-        <span class="blob blob--2"></span>
-        <span class="gloss gloss--1"></span>
-        <span class="gloss gloss--2"></span>
-      </div>
-
+      <div class="shift-ambient" aria-hidden="true"></div>
       <div id="screen-host" class="screen-host"></div>
       <nav id="bottom-nav" class="shift-nav" aria-label="Навигация"></nav>
     </div>
-
     <div id="toast-host" class="toast-host" aria-live="polite"></div>
-    <script src="app.js?v=shift1"></script>
+    <div id="sheet-host" class="sheet-host" aria-hidden="true"></div>
+    <script src="app.js?v=shift-ios1"></script>
   </body>
 </html>

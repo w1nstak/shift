@@ -1,22 +1,26 @@
-/* Shift Mini App — unified SPA */
+/* Shift — iOS-style Telegram Mini App */
 (function () {
   'use strict';
 
+  var STORE_KEY = 'shift-app-v1';
+
   /* ========== Telegram ========== */
-  let tg = null;
+  var tg = null;
 
   function getTg() {
     return tg || (window.Telegram && window.Telegram.WebApp) || null;
   }
 
   function haptic(style) {
-    const fb = tg && tg.HapticFeedback;
+    if (store.settings && store.settings.haptics === false) return;
+    var fb = tg && tg.HapticFeedback;
     if (!fb) return;
     try {
       if (style === 'success' && fb.notificationOccurred) return fb.notificationOccurred('success');
       if (style === 'error' && fb.notificationOccurred) return fb.notificationOccurred('error');
+      if (style === 'selection' && fb.selectionChanged) return fb.selectionChanged();
       if (fb.impactOccurred) fb.impactOccurred({ light: 'light', medium: 'medium', heavy: 'heavy' }[style] || 'light');
-    } catch (e) { /* noop */ }
+    } catch (e) {}
   }
 
   function initTelegram(hooks) {
@@ -24,10 +28,15 @@
     if (!tg) return null;
     tg.ready();
     tg.expand();
-    applyTheme(tg);
+    try {
+      if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+    } catch (e) {}
+    try {
+      if (tg.setHeaderColor) tg.setHeaderColor('#1769FF');
+      if (tg.setBackgroundColor) tg.setBackgroundColor('#1769FF');
+    } catch (e) {}
     if (typeof tg.onEvent === 'function') {
-      tg.onEvent('themeChanged', function () { applyTheme(tg); });
-      tg.onEvent('viewportChanged', function () { /* layout uses dvh/safe-area */ });
+      tg.onEvent('themeChanged', function () {});
     }
     if (tg.BackButton) {
       tg.BackButton.onClick(function () {
@@ -35,22 +44,8 @@
         if (hooks && hooks.onBack) hooks.onBack();
       });
     }
-    if (tg.MainButton) {
-      tg.MainButton.hide();
-    }
+    if (tg.MainButton) tg.MainButton.hide();
     return tg;
-  }
-
-  function applyTheme(webApp) {
-    if (!webApp) return;
-    const tp = webApp.themeParams || {};
-    const root = document.documentElement;
-    if (tp.button_color) root.style.setProperty('--tg-button', tp.button_color);
-    if (tp.button_text_color) root.style.setProperty('--tg-button-text', tp.button_text_color);
-    try {
-      if (webApp.setHeaderColor) webApp.setHeaderColor('#1769FF');
-      if (webApp.setBackgroundColor) webApp.setBackgroundColor('#1769FF');
-    } catch (e) { /* noop */ }
   }
 
   function setBackVisible(on) {
@@ -59,134 +54,161 @@
     else tg.BackButton.hide();
   }
 
-  let mainButtonHandler = null;
-  let mainButtonBound = false;
-
-  function setMainButton(opts) {
-    if (!tg || !tg.MainButton) return;
-    if (!mainButtonBound) {
-      mainButtonBound = true;
-      tg.MainButton.onClick(function () {
-        haptic('medium');
-        if (typeof mainButtonHandler === 'function') mainButtonHandler();
-      });
-    }
-    if (!opts || !opts.visible) {
-      mainButtonHandler = null;
-      tg.MainButton.hide();
-      return;
-    }
-    mainButtonHandler = opts.onClick || null;
-    tg.MainButton.setText(opts.text || 'Далее');
-    tg.MainButton.show();
-    tg.MainButton.enable();
+  /* ========== Store ========== */
+  function defaultStore() {
+    return {
+      user: { name: 'Игрок', shiftId: '@player', avatar: 'И' },
+      settings: { haptics: true, sounds: true },
+      stats: { gamesPlayed: 0, bestMath: 0, bestTap: 0, streak: 1, messages: 0 },
+      achievements: {},
+      messages: {},
+      chats: null,
+    };
   }
 
-  /* ========== Mock data ========== */
-  const USER = {
-    name: 'Артём',
-    shiftId: '@artem',
-    avatar: 'А',
-    stats: { games: 24, chats: 128, achievements: 12 },
-  };
+  function loadStore() {
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return defaultStore();
+      var parsed = JSON.parse(raw);
+      var base = defaultStore();
+      return Object.assign(base, parsed, {
+        user: Object.assign(base.user, parsed.user || {}),
+        settings: Object.assign(base.settings, parsed.settings || {}),
+        stats: Object.assign(base.stats, parsed.stats || {}),
+        achievements: Object.assign({}, parsed.achievements || {}),
+        messages: Object.assign({}, parsed.messages || {}),
+      });
+    } catch (e) {
+      return defaultStore();
+    }
+  }
 
-  const CHATS = [
-    { id: 'shift-ai', name: 'Shift AI', preview: 'Чем могу помочь?', time: 'сейчас', unread: 0, type: 'ai', accent: '#00D6A3', avatar: '✨', color: 'ai' },
-    { id: 'masha', name: 'Маша', preview: 'Ок, давай в 19:00', time: '12:40', unread: 2, type: 'personal', accent: '#FF7AD9', avatar: 'М', color: 'pink' },
-    { id: 'dev', name: 'Shift Dev', preview: 'Новый билд готов', time: '11:02', unread: 0, type: 'group', accent: '#1769FF', avatar: 'D', color: 'violet' },
-    { id: 'leo', name: 'Leo', preview: 'Залетай в Math Battle', time: 'вчера', unread: 1, type: 'personal', accent: '#00C2FF', avatar: 'L', color: 'green' },
-    { id: 'clan', name: 'Команда Shift', preview: 'Daily Challenge открыт 🏆', time: 'вчера', unread: 5, type: 'group', accent: '#7B8CFF', avatar: 'I', color: 'violet' },
+  function saveStore() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(store));
+    } catch (e) {}
+  }
+
+  var store = loadStore();
+
+  var CHATS_SEED = [
+    { id: 'shift-ai', name: 'Shift AI', preview: 'Чем могу помочь?', time: 'сейчас', unread: 0, type: 'ai', color: 'ai', avatar: '✨', iconBg: 'bg-teal' },
+    { id: 'masha', name: 'Маша', preview: 'Ок, давай в 19:00', time: '12:40', unread: 2, type: 'personal', color: 'pink', avatar: 'М', iconBg: 'bg-pink' },
+    { id: 'dev', name: 'Shift Dev', preview: 'Новый билд готов', time: '11:02', unread: 0, type: 'group', color: 'violet', avatar: 'D', iconBg: 'bg-purple' },
+    { id: 'leo', name: 'Leo', preview: 'Залетай в Math Battle', time: 'вчера', unread: 1, type: 'personal', color: 'green', avatar: 'L', iconBg: 'bg-green' },
+    { id: 'team', name: 'Команда Shift', preview: 'Daily Challenge открыт', time: 'вчера', unread: 3, type: 'group', color: 'violet', avatar: 'S', iconBg: 'bg-blue' },
   ];
 
-  const GAMES = [
-    { id: 'math', name: 'Math Battle', desc: 'Считай быстрее всех', emoji: '🧠', difficulty: 'Medium', score: 960, featured: true },
-    { id: 'tap', name: 'Quick Tap', desc: 'Реакция на скорость', emoji: '🎯', difficulty: 'Easy', score: 420 },
-    { id: 'run', name: 'Run Shift', desc: 'Беги и собирай бонусы', emoji: '🏃', difficulty: 'Medium', score: 780 },
-    { id: 'puzzle', name: 'Puzzle', desc: 'Собери фигуру за минуту', emoji: '🧩', difficulty: 'Hard', score: 310 },
-    { id: 'space', name: 'Space Rush', desc: 'Космический раннер', emoji: '🚀', difficulty: 'Hard', score: 1120 },
-    { id: 'daily', name: 'Daily Challenge', desc: 'Ежедневный челлендж', emoji: '🏆', difficulty: 'Daily', score: 0 },
+  if (!store.chats) store.chats = CHATS_SEED.map(function (c) { return Object.assign({}, c); });
+
+  var GAMES = [
+    { id: 'math', name: 'Math Battle', desc: 'Считай быстрее всех', emoji: '🧠', difficulty: 'Средняя', featured: true },
+    { id: 'tap', name: 'Quick Tap', desc: 'Нажми цель как можно чаще', emoji: '🎯', difficulty: 'Лёгкая' },
+    { id: 'daily', name: 'Daily Challenge', desc: 'Ежедневный Math Battle', emoji: '🏆', difficulty: 'Челлендж' },
   ];
 
-  const AI_ACTIONS = [
-    { id: 'create', title: 'Создать', sub: 'Идеи и черновики', icon: '✨', tone: 'create' },
-    { id: 'search', title: 'Найти', sub: 'Ответы и факты', icon: '🔎', tone: 'search' },
-    { id: 'write', title: 'Написать', sub: 'Тексты и посты', icon: '📝', tone: 'write' },
-    { id: 'plan', title: 'Спланировать', sub: 'День и задачи', icon: '🎯', tone: 'plan' },
-    { id: 'image', title: 'Создать изображение', sub: 'Визуальные идеи', icon: '🎨', tone: 'image' },
-    { id: 'task', title: 'Выполнить', sub: 'Быстрые шаги', icon: '⚡', tone: 'task' },
+  var AI_ACTIONS = [
+    { id: 'create', title: 'Создать', sub: 'Идеи и черновики', icon: '✨' },
+    { id: 'search', title: 'Найти', sub: 'Ответы и факты', icon: '🔎' },
+    { id: 'write', title: 'Написать', sub: 'Тексты и посты', icon: '📝' },
+    { id: 'plan', title: 'Спланировать', sub: 'День и задачи', icon: '🎯' },
+    { id: 'image', title: 'Создать изображение', sub: 'Визуальные идеи', icon: '🎨' },
+    { id: 'task', title: 'Выполнить', sub: 'Быстрые шаги', icon: '⚡' },
   ];
 
-  const QUICK = [
-    { id: 'ai', label: 'Shift AI', icon: '✨', go: 'ai' },
-    { id: 'chats', label: 'Чаты', icon: '💬', go: 'chats' },
-    { id: 'games', label: 'Игры', icon: '🎮', go: 'games' },
-    { id: 'create', label: 'Создать', icon: '⚡', go: 'ai' },
+  var ACHIEVEMENTS = [
+    { id: 'first_game', title: 'Первая игра', sub: 'Сыграй любую игру', icon: '🎮' },
+    { id: 'math_200', title: 'Считака', sub: 'Набери 200 в Math Battle', icon: '🧠' },
+    { id: 'tap_40', title: 'Реактив', sub: '40 тапов в Quick Tap', icon: '🎯' },
+    { id: 'chatty', title: 'Собеседник', sub: '10 сообщений Shift', icon: '💬' },
   ];
 
-  /* ========== State / Router ========== */
-  const state = {
+  /* ========== UI state ========== */
+  var ui = {
     tab: 'home',
-    overlay: null, // 'chat' | 'play' | null
+    overlay: null,
     chatId: null,
     chatFilter: 'all',
     chatSearch: '',
-    messages: {},
+    typing: false,
     game: null,
+    sheet: null,
+    navDir: 'push',
   };
 
-  const refs = {
+  var refs = {
     host: document.getElementById('screen-host'),
     nav: document.getElementById('bottom-nav'),
     root: document.getElementById('shift-root'),
     toast: document.getElementById('toast-host'),
+    sheet: document.getElementById('sheet-host'),
   };
 
-  const NAV = [
-    { id: 'home', label: 'Главная', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 11 12 4l8 7v8a1.5 1.5 0 0 1-1.5 1.5H14v-6H10v6H5.5A1.5 1.5 0 0 1 4 19v-8Z"/></svg>' },
-    { id: 'chats', label: 'Чаты', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v6A2.5 2.5 0 0 1 16.5 15H10l-4 3.5V6.5Z"/></svg>' },
-    { id: 'ai', label: 'Shift', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M3 12c2.4-5 5.8-7.5 9-7.5S18.6 7 21 12c-2.4 5-5.8 7.5-9 7.5S5.4 17 3 12Z"/></svg>' },
-    { id: 'games', label: 'Игры', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5.5" y="7" width="13" height="10" rx="3"/><path d="M9 12h6M12 9.5v5M4.5 10.5 3 12l1.5 1.5M19.5 10.5 21 12l-1.5 1.5"/></svg>' },
-    { id: 'profile', label: 'Профиль', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.2"/><path d="M5 19c1.5-2.8 4-4.2 7-4.2s5.5 1.4 7 4.2"/></svg>' },
+  var NAV = [
+    { id: 'home', label: 'Главная', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 11 12 4l8 7v8a1.5 1.5 0 0 1-1.5 1.5H14v-6H10v6H5.5A1.5 1.5 0 0 1 4 19v-8Z"/></svg>' },
+    { id: 'chats', label: 'Чаты', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v6A2.5 2.5 0 0 1 16.5 15H10l-4 3.5V6.5Z"/></svg>' },
+    { id: 'ai', label: 'Shift', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M3 12c2.4-5 5.8-7.5 9-7.5S18.6 7 21 12c-2.4 5-5.8 7.5-9 7.5S5.4 17 3 12Z"/></svg>' },
+    { id: 'games', label: 'Игры', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="5.5" y="7" width="13" height="10" rx="3"/><path d="M9 12h6M12 9.5v5"/></svg>' },
+    { id: 'profile', label: 'Профиль', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="3.2"/><path d="M5 19c1.5-2.8 4-4.2 7-4.2s5.5 1.4 7 4.2"/></svg>' },
   ];
-
-  function toast(text) {
-    const el = document.createElement('div');
-    el.className = 'toast';
-    el.textContent = text;
-    refs.toast.appendChild(el);
-    requestAnimationFrame(function () { el.classList.add('is-show'); });
-    setTimeout(function () {
-      el.classList.remove('is-show');
-      setTimeout(function () { el.remove(); }, 250);
-    }, 1400);
-  }
 
   function esc(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  function avatarClass(color) {
-    if (color === 'ai') return 'avatar avatar--ai';
-    if (color === 'pink') return 'avatar avatar--pink';
-    if (color === 'green') return 'avatar avatar--green';
-    if (color === 'violet') return 'avatar avatar--violet';
-    return 'avatar';
+  function toast(text) {
+    var el = document.createElement('div');
+    el.className = 'toast';
+    el.textContent = text;
+    refs.toast.appendChild(el);
+    requestAnimationFrame(function () { el.classList.add('is-show'); });
+    setTimeout(function () {
+      el.classList.remove('is-show');
+      setTimeout(function () { el.remove(); }, 220);
+    }, 1600);
+  }
+
+  function greeting() {
+    var h = new Date().getHours();
+    if (h < 5) return 'Доброй ночи';
+    if (h < 12) return 'Доброе утро';
+    if (h < 18) return 'Добрый день';
+    return 'Добрый вечер';
+  }
+
+  function nowLabel() {
+    return new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function unlock(id) {
+    if (store.achievements[id]) return;
+    store.achievements[id] = true;
+    saveStore();
+    var a = ACHIEVEMENTS.find(function (x) { return x.id === id; });
+    if (a) toast('Достижение: ' + a.title);
+    haptic('success');
+  }
+
+  function countAchievements() {
+    return Object.keys(store.achievements).filter(function (k) { return store.achievements[k]; }).length;
   }
 
   /* ========== Nav ========== */
   function renderNav() {
-    const hide = state.overlay === 'chat' || state.overlay === 'play';
+    var hide = ui.overlay === 'chat' || ui.overlay === 'play';
     refs.nav.classList.toggle('is-hidden', hide);
     refs.nav.innerHTML = NAV.map(function (item) {
-      return '<button type="button" class="shift-nav__item' + (state.tab === item.id && !state.overlay ? ' is-active' : '') + '" data-tab="' + item.id + '">' +
+      return '<button type="button" class="shift-nav__item' + (ui.tab === item.id && !ui.overlay ? ' is-active' : '') + '" data-tab="' + item.id + '">' +
         '<span class="shift-nav__icon">' + item.icon + '</span><small>' + esc(item.label) + '</small></button>';
     }).join('');
     refs.nav.querySelectorAll('[data-tab]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        haptic('light');
-        state.overlay = null;
-        state.tab = btn.dataset.tab;
+        haptic('selection');
+        ui.overlay = null;
+        ui.navDir = 'push';
+        ui.tab = btn.dataset.tab;
         route();
       });
     });
@@ -194,180 +216,149 @@
 
   /* ========== Screens ========== */
   function renderHome() {
-    const recent = CHATS.slice(0, 4);
-    const games = GAMES.slice(0, 4);
+    var recent = store.chats.filter(function (c) { return c.id !== 'shift-ai'; }).slice(0, 3);
+    var unread = store.chats.reduce(function (s, c) { return s + (c.unread || 0); }, 0);
     return (
-      '<section class="screen is-active" data-name="home">' +
-        '<div class="home-hero">' +
-          '<div class="home-hero__copy reveal">' +
-            '<p class="eyebrow">Shift Ecosystem</p>' +
-            '<h1 class="h1">Shift — всё нужное в одном месте</h1>' +
-            '<p class="lead">Общайтесь, играйте, создавайте и решайте задачи вместе с Shift.</p>' +
-          '</div>' +
-          '<div class="home-hero__stage reveal reveal-d1">' +
-            '<div class="float-card float-card--a"><small>Сейчас онлайн</small><strong class="accent">1.2k</strong></div>' +
-            '<div class="float-card float-card--b"><small>Daily Challenge</small><strong>Math Battle</strong></div>' +
-            '<div class="phone-mock" aria-hidden="true">' +
-              '<div class="phone-mock__frame"><div class="phone-mock__screen">' +
-                '<div class="phone-mock__notch"></div>' +
-                '<div class="phone-mini-row"><div class="phone-mini-avatar">✨</div><div><strong>Shift AI</strong><span>Чем помочь?</span></div></div>' +
-                '<div class="phone-mini-row"><div class="phone-mini-avatar">🧠</div><div><strong>Math Battle</strong><span>Рекорд 960</span></div></div>' +
-                '<div class="phone-mini-row"><div class="phone-mini-avatar">💬</div><div><strong>Чаты</strong><span>3 новых</span></div></div>' +
-              '</div></div>' +
-            '</div>' +
-          '</div>' +
+      '<section class="screen is-active">' +
+        '<p class="greeting">' + greeting() + '</p>' +
+        '<h1 class="large-title">' + esc(store.user.name) + '</h1>' +
+        '<div class="stats-grid">' +
+          '<div class="stat-card"><small>Стрик</small><strong>' + store.stats.streak + '</strong><span>дней подряд</span></div>' +
+          '<div class="stat-card"><small>Рекорд</small><strong>' + Math.max(store.stats.bestMath, store.stats.bestTap) + '</strong><span>лучший счёт</span></div>' +
         '</div>' +
 
-        '<div class="section-gap reveal reveal-d2">' +
-          '<div class="section-head"><h2>Быстрые действия</h2></div>' +
-          '<div class="quick-actions">' +
-            QUICK.map(function (q) {
-              return '<button type="button" class="quick-action" data-go="' + q.go + '"><span class="quick-action__icon">' + q.icon + '</span><span>' + esc(q.label) + '</span></button>';
-            }).join('') +
-          '</div>' +
+        '<p class="section-label">Ярлыки</p>' +
+        '<div class="shortcuts">' +
+          '<button type="button" class="shortcut" data-go="ai"><span class="shortcut__icon bg-teal">✨</span><span>Shift</span></button>' +
+          '<button type="button" class="shortcut" data-go="chats"><span class="shortcut__icon bg-blue">💬</span><span>Чаты' + (unread ? ' · ' + unread : '') + '</span></button>' +
+          '<button type="button" class="shortcut" data-play="math"><span class="shortcut__icon bg-orange">🧠</span><span>Math</span></button>' +
+          '<button type="button" class="shortcut" data-play="tap"><span class="shortcut__icon bg-pink">🎯</span><span>Tap</span></button>' +
         '</div>' +
 
-        '<div class="section-gap reveal reveal-d3">' +
-          '<div class="section-head"><h2>Последние чаты</h2><button type="button" class="link" data-go="chats">Все</button></div>' +
-          '<div class="h-scroll">' +
-            recent.map(function (c) {
-              return '<button type="button" class="card mini-chat-card card--press" data-open-chat="' + c.id + '">' +
-                '<div class="' + avatarClass(c.color) + '">' + esc(c.avatar) + '</div>' +
-                '<div class="mini-chat-card__copy"><strong>' + esc(c.name) + '</strong><span>' + esc(c.preview) + '</span></div></button>';
-            }).join('') +
-          '</div>' +
+        '<div class="section-row"><p class="section-label">Недавние</p><button type="button" class="see-all" data-go="chats">Все</button></div>' +
+        '<div class="group">' +
+          '<button type="button" class="row" data-open-chat="shift-ai">' +
+            '<span class="row__icon bg-teal">✨</span>' +
+            '<span class="row__body"><span class="row__title">Shift AI</span><span class="row__sub">Спросить что угодно</span></span>' +
+            '<span class="chevron">›</span></button>' +
+          recent.map(function (c) {
+            return '<button type="button" class="row" data-open-chat="' + c.id + '">' +
+              '<span class="row__icon ' + c.iconBg + '">' + esc(c.avatar) + '</span>' +
+              '<span class="row__body"><span class="row__title">' + esc(c.name) + '</span><span class="row__sub">' + esc(c.preview) + '</span></span>' +
+              (c.unread ? '<span class="badge">' + c.unread + '</span>' : '<span class="row__meta">' + esc(c.time) + '</span>') +
+              '<span class="chevron">›</span></button>';
+          }).join('') +
         '</div>' +
 
-        '<div class="section-gap reveal reveal-d4">' +
-          '<div class="section-head"><h2>Игры</h2><button type="button" class="link" data-go="games">Ещё</button></div>' +
-          '<div class="h-scroll">' +
-            games.map(function (g) {
-              return '<button type="button" class="card game-pill card--press" data-play="' + g.id + '">' +
-                '<div class="game-pill__art">' + g.emoji + '</div><strong>' + esc(g.name) + '</strong><span>' + esc(g.desc) + '</span></button>';
-            }).join('') +
-          '</div>' +
-        '</div>' +
-
-        '<div class="section-gap">' +
-          '<div class="section-head"><h2>Рекомендации</h2></div>' +
-          '<div class="h-scroll">' +
-            '<button type="button" class="card reco-card card--press" data-go="ai"><span class="tag">AI</span><strong class="h3">Спроси Shift</strong><p>Идеи, планы и ответы за секунды</p></button>' +
-            '<button type="button" class="card reco-card card--press" data-play="daily"><span class="tag">Игра</span><strong class="h3">Daily Challenge</strong><p>Сегодня: Math Battle</p></button>' +
-            '<button type="button" class="card reco-card card--press" data-go="chats"><span class="tag">Чаты</span><strong class="h3">Новые сообщения</strong><p>3 непрочитанных диалога</p></button>' +
-          '</div>' +
+        '<p class="section-label">Продолжить</p>' +
+        '<div class="group">' +
+          '<button type="button" class="row" data-play="daily">' +
+            '<span class="row__icon bg-orange">🏆</span>' +
+            '<span class="row__body"><span class="row__title">Daily Challenge</span><span class="row__sub">Math Battle · сегодня</span></span>' +
+            '<span class="chevron">›</span></button>' +
+          '<button type="button" class="row" data-go="games">' +
+            '<span class="row__icon bg-purple">🎮</span>' +
+            '<span class="row__body"><span class="row__title">Shift Games</span><span class="row__sub">Сыграно: ' + store.stats.gamesPlayed + '</span></span>' +
+            '<span class="chevron">›</span></button>' +
         '</div>' +
       '</section>'
     );
   }
 
   function renderChats() {
-    const filter = state.chatFilter;
-    const q = (state.chatSearch || '').toLowerCase();
-    const list = CHATS.filter(function (c) {
-      if (c.type === 'ai') return false;
-      if (filter === 'personal' && c.type !== 'personal') return false;
-      if (filter === 'group' && c.type !== 'group') return false;
-      if (filter === 'ai') return false;
+    var q = (ui.chatSearch || '').toLowerCase();
+    var list = store.chats.filter(function (c) {
+      if (c.id === 'shift-ai') return false;
+      if (ui.chatFilter === 'personal' && c.type !== 'personal') return false;
+      if (ui.chatFilter === 'group' && c.type !== 'group') return false;
+      if (ui.chatFilter === 'ai') return false;
       if (q && c.name.toLowerCase().indexOf(q) === -1 && c.preview.toLowerCase().indexOf(q) === -1) return false;
       return true;
     });
-
-    const filters = [
+    var filters = [
       { id: 'all', label: 'Все' },
       { id: 'personal', label: 'Личные' },
       { id: 'group', label: 'Группы' },
-      { id: 'ai', label: 'Shift AI' },
+      { id: 'ai', label: 'AI' },
     ];
-
     return (
-      '<section class="screen is-active" data-name="chats">' +
-        '<p class="eyebrow reveal">Messenger</p>' +
-        '<h1 class="h2 reveal">Общайтесь с Shift и друзьями</h1>' +
-        '<div class="search-bar reveal reveal-d1">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg>' +
-          '<input id="chat-search" type="search" placeholder="Поиск чатов" value="' + esc(state.chatSearch) + '" />' +
+      '<section class="screen is-active">' +
+        '<h1 class="large-title">Чаты</h1>' +
+        '<div class="search">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg>' +
+          '<input id="chat-search" type="search" placeholder="Поиск" value="' + esc(ui.chatSearch) + '" enterkeyhint="search" />' +
         '</div>' +
-        '<div class="filter-row reveal reveal-d1">' +
+        '<div class="segmented">' +
           filters.map(function (f) {
-            return '<button type="button" class="chip' + (filter === f.id ? ' is-active' : '') + '" data-filter="' + f.id + '">' + esc(f.label) + '</button>';
+            return '<button type="button" class="' + (ui.chatFilter === f.id ? 'is-active' : '') + '" data-filter="' + f.id + '">' + f.label + '</button>';
           }).join('') +
         '</div>' +
-        '<button type="button" class="ai-promo reveal reveal-d2" data-open-chat="shift-ai">' +
-          '<span class="ai-promo__glow"></span>' +
-          '<strong>✨ Shift AI</strong>' +
-          '<p>Чем могу помочь?</p>' +
-          '<span class="btn btn--white btn--sm">Написать Shift →</span>' +
+        '<button type="button" class="banner" data-open-chat="shift-ai">' +
+          '<span class="banner__icon">✨</span>' +
+          '<span><strong>Shift AI</strong><span>Чем могу помочь?</span></span>' +
+          '<span class="chevron" style="color:#fff;margin-left:auto">›</span>' +
         '</button>' +
-        (filter === 'ai' ? '' : (
-          '<div class="chat-list reveal reveal-d3">' +
-            list.map(function (c) {
-              return '<button type="button" class="chat-card" style="--accent:' + c.accent + '" data-open-chat="' + c.id + '">' +
-                '<div class="' + avatarClass(c.color) + '">' + esc(c.avatar) + '</div>' +
-                '<div class="chat-card__body"><div class="chat-card__top"><strong>' + esc(c.name) + '</strong><span class="chat-card__time">' + esc(c.time) + '</span></div>' +
-                '<p class="chat-card__preview">' + esc(c.preview) + '</p></div>' +
-                (c.unread ? '<span class="badge">' + c.unread + '</span>' : '') +
-              '</button>';
-            }).join('') +
+        (ui.chatFilter === 'ai' ? '' : (
+          '<div class="group">' +
+            (list.length ? list.map(function (c) {
+              return '<button type="button" class="row" data-open-chat="' + c.id + '">' +
+                '<span class="row__icon ' + c.iconBg + '">' + esc(c.avatar) + '</span>' +
+                '<span class="row__body"><span class="row__title">' + esc(c.name) + '</span><span class="row__sub">' + esc(c.preview) + '</span></span>' +
+                (c.unread ? '<span class="badge">' + c.unread + '</span>' : '<span class="row__meta">' + esc(c.time) + '</span>') +
+                '<span class="chevron">›</span></button>';
+            }).join('') : '<div class="row"><span class="row__body"><span class="row__sub">Ничего не найдено</span></span></div>') +
           '</div>'
         )) +
-        (filter === 'ai' ? '<div class="reveal reveal-d3" style="height:8px"></div>' : '') +
       '</section>'
     );
   }
 
   function ensureMessages(chatId) {
-    if (state.messages[chatId]) return state.messages[chatId];
+    if (store.messages[chatId] && store.messages[chatId].length) return store.messages[chatId];
     if (chatId === 'shift-ai') {
-      state.messages[chatId] = [
-        { from: 'shift', text: 'Привет! Я Shift 👋\nЧто сделаем сегодня?' },
-      ];
+      store.messages[chatId] = [{ from: 'shift', text: 'Привет! Я Shift 👋\nЧто сделаем сегодня?' }];
     } else {
-      const chat = CHATS.find(function (c) { return c.id === chatId; });
-      state.messages[chatId] = [
+      var chat = store.chats.find(function (c) { return c.id === chatId; });
+      store.messages[chatId] = [
         { from: 'shift', text: chat ? chat.preview : 'Привет!' },
-        { from: 'user', text: 'Привет 👋' },
       ];
     }
-    return state.messages[chatId];
+    saveStore();
+    return store.messages[chatId];
   }
 
   function renderChatThread() {
-    const chat = CHATS.find(function (c) { return c.id === state.chatId; }) || { name: 'Чат', avatar: '?', color: '' };
-    const isAi = state.chatId === 'shift-ai';
-    const msgs = ensureMessages(state.chatId);
-
+    var chat = store.chats.find(function (c) { return c.id === ui.chatId; }) || { name: 'Чат', avatar: '?' };
+    var isAi = ui.chatId === 'shift-ai';
+    var msgs = ensureMessages(ui.chatId);
     return (
-      '<section class="screen is-active" data-name="chat">' +
-        '<div class="chat-thread">' +
-          '<div class="chat-thread__head">' +
-            '<button type="button" class="icon-btn" data-back aria-label="Назад"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18 9 12l6-6"/></svg></button>' +
-            '<div class="' + avatarClass(chat.color) + ' avatar--sm">' + esc(chat.avatar) + '</div>' +
-            '<div class="chat-thread__title"><strong>' + esc(chat.name) + '</strong><span>' + (isAi ? 'always online' : 'в сети') + '</span></div>' +
+      '<section class="screen is-active">' +
+        '<div class="thread">' +
+          '<div class="thread__bar">' +
+            '<button type="button" class="back" data-back aria-label="Назад">‹</button>' +
+            '<div class="thread__who"><strong>' + esc(chat.name) + '</strong><span>' + (isAi ? 'онлайн' : 'в сети') + '</span></div>' +
+            '<span></span>' +
           '</div>' +
           '<div class="messages" id="msg-list">' +
             msgs.map(function (m) {
-              if (m.from === 'user') {
-                return '<div class="msg msg--user"><div class="msg__bubble">' + esc(m.text).replace(/\n/g, '<br/>') + '</div></div>';
-              }
-              return '<div class="msg msg--shift"><div class="' + avatarClass('ai') + ' avatar--sm">✨</div><div class="msg__bubble">' + esc(m.text).replace(/\n/g, '<br/>') + '</div></div>';
+              var cls = m.from === 'user' ? 'bubble bubble--me' : 'bubble bubble--them';
+              return '<div class="' + cls + '">' + esc(m.text).replace(/\n/g, '<br/>') + '</div>';
             }).join('') +
+            (ui.typing ? '<div class="typing">Shift печатает…</div>' : '') +
           '</div>' +
           (isAi ? (
-            '<div class="ai-actions-row">' +
+            '<div class="suggest">' +
               AI_ACTIONS.slice(0, 4).map(function (a) {
-                return '<button type="button" class="ai-action-chip" data-ai-prompt="' + esc(a.title) + '">' + a.icon + ' ' + esc(a.title) + '</button>';
+                return '<button type="button" data-ai-prompt="' + esc(a.title) + '">' + a.icon + ' ' + esc(a.title) + '</button>';
               }).join('') +
             '</div>'
           ) : '') +
-          '<div class="composer">' +
-            '<div class="composer__tools">' +
-              '<button type="button" class="composer__tool" data-tool="attach" aria-label="Вложение">＋</button>' +
-              '<button type="button" class="composer__tool" data-tool="image" aria-label="Фото">🖼</button>' +
-            '</div>' +
-            '<input id="composer-input" type="text" placeholder="Напишите сообщение..." />' +
-            '<button type="button" class="composer__tool" data-tool="voice" aria-label="Голос">🎙</button>' +
-            '<button type="button" class="composer__send" data-send aria-label="Отправить">➤</button>' +
+          '<div class="composer-bar">' +
+            '<button type="button" class="tool" data-attach aria-label="Вложение">＋</button>' +
+            '<textarea id="composer-input" class="composer-field" rows="1" placeholder="Сообщение" enterkeyhint="send"></textarea>' +
+            '<button type="button" class="composer-send" id="composer-send" data-send aria-label="Отправить">↑</button>' +
           '</div>' +
+          '<input id="file-input" type="file" accept="image/*,.pdf,.txt" hidden />' +
         '</div>' +
       '</section>'
     );
@@ -375,52 +366,46 @@
 
   function renderAI() {
     return (
-      '<section class="screen is-active" data-name="ai">' +
-        '<div class="ai-hello reveal">' +
-          '<p class="eyebrow">Shift AI</p>' +
-          '<h1 class="h1">Привет! Я Shift 👋</h1>' +
-          '<p class="lead">Что сделаем сегодня?</p>' +
-        '</div>' +
-        '<div class="ai-grid">' +
-          AI_ACTIONS.map(function (a, i) {
-            return '<button type="button" class="ai-tile ai-tile--' + a.tone + ' reveal reveal-d' + ((i % 4) + 1) + '" data-ai-start="' + a.id + '">' +
+      '<section class="screen is-active">' +
+        '<p class="greeting">Ассистент</p>' +
+        '<h1 class="large-title">Привет! Я Shift 👋</h1>' +
+        '<p class="subtitle">Что сделаем сегодня?</p>' +
+        '<div class="ai-grid" style="margin-top:18px">' +
+          AI_ACTIONS.map(function (a) {
+            return '<button type="button" class="ai-tile" data-ai-start="' + a.id + '">' +
               '<div><div class="ai-tile__icon">' + a.icon + '</div><strong>' + esc(a.title) + '</strong><span>' + esc(a.sub) + '</span></div></button>';
           }).join('') +
         '</div>' +
-        '<div class="section-gap reveal">' +
-          '<button type="button" class="btn btn--white btn--wide" data-open-chat="shift-ai">Открыть чат с Shift</button>' +
+        '<div style="margin-top:16px">' +
+          '<button type="button" class="btn btn--primary btn--wide" data-open-chat="shift-ai">Открыть чат</button>' +
         '</div>' +
       '</section>'
     );
   }
 
   function renderGames() {
-    const featured = GAMES.find(function (g) { return g.featured; }) || GAMES[0];
     return (
-      '<section class="screen is-active" data-name="games">' +
-        '<p class="eyebrow reveal">Shift Games</p>' +
-        '<h1 class="h2 reveal">Играйте в Shift</h1>' +
-        '<p class="lead reveal reveal-d1">Небольшие игры, чтобы развлечься и получить награды.</p>' +
-        '<button type="button" class="hero-game reveal reveal-d2" data-play="' + featured.id + '">' +
-          '<span class="hero-game__badge">🏆 DAILY CHALLENGE</span>' +
-          '<h3>' + esc(featured.name) + '</h3>' +
-          '<p>Сегодняшний челлендж — успей поставить рекорд</p>' +
-          '<span class="btn btn--white btn--sm">Играть</span>' +
-        '</button>' +
-        '<div class="section-head"><h2>Выбирайте игру</h2></div>' +
-        '<div class="games-grid">' +
+      '<section class="screen is-active">' +
+        '<p class="greeting">Shift Games</p>' +
+        '<h1 class="large-title">Игры</h1>' +
+        '<p class="subtitle">Небольшие игры, чтобы развлечься и получить награды.</p>' +
+        '<div style="margin-top:16px">' +
+          '<button type="button" class="featured" data-play="daily">' +
+            '<span class="tag">Daily Challenge</span>' +
+            '<h3>Math Battle</h3>' +
+            '<p>Сегодняшний челлендж · рекорд ' + store.stats.bestMath + '</p>' +
+            '<span class="btn btn--primary" style="min-height:40px;padding:0 16px;font-size:15px">Играть</span>' +
+          '</button>' +
+        '</div>' +
+        '<p class="section-label">Все игры</p>' +
+        '<div class="group">' +
           GAMES.map(function (g) {
-            return '<button type="button" class="game-card" data-play="' + g.id + '">' +
-              '<div class="game-card__art">' + g.emoji + '</div>' +
-              '<div class="game-card__meta">' +
-                '<strong>' + esc(g.name) + '</strong>' +
-                '<p>' + esc(g.desc) + '</p>' +
-                '<div class="game-card__stats">' +
-                  '<span class="stat-pill">' + esc(g.difficulty) + '</span>' +
-                  '<span class="stat-pill">Best ' + g.score + '</span>' +
-                '</div>' +
-                '<span class="btn btn--primary btn--sm">Play</span>' +
-              '</div></button>';
+            var best = g.id === 'tap' ? store.stats.bestTap : store.stats.bestMath;
+            return '<button type="button" class="row" data-play="' + g.id + '">' +
+              '<span class="game-art">' + g.emoji + '</span>' +
+              '<span class="row__body"><span class="row__title">' + esc(g.name) + '</span><span class="row__sub">' + esc(g.desc) + ' · ' + esc(g.difficulty) + '</span></span>' +
+              '<span class="row__meta">' + best + '</span>' +
+              '<span class="chevron">›</span></button>';
           }).join('') +
         '</div>' +
       '</section>'
@@ -429,394 +414,570 @@
 
   function renderProfile() {
     return (
-      '<section class="screen is-active" data-name="profile">' +
-        '<p class="eyebrow reveal">You</p>' +
-        '<h1 class="h2 reveal">Мой Shift</h1>' +
-        '<div class="profile-hero-card reveal reveal-d1">' +
-          '<div class="avatar avatar--lg">' + esc(USER.avatar) + '</div>' +
-          '<h2>' + esc(USER.name) + '</h2>' +
-          '<span class="shift-id">Shift ID ' + esc(USER.shiftId) + '</span>' +
-          '<div class="profile-stats">' +
-            '<div><strong>' + USER.stats.games + '</strong><small>Игры</small></div>' +
-            '<div><strong>' + USER.stats.chats + '</strong><small>Чаты</small></div>' +
-            '<div><strong>' + USER.stats.achievements + '</strong><small>Достижения</small></div>' +
+      '<section class="screen is-active">' +
+        '<h1 class="large-title">Мой Shift</h1>' +
+        '<div class="profile-card" style="margin-top:12px">' +
+          '<div class="avatar-xl">' + esc(store.user.avatar) + '</div>' +
+          '<h2>' + esc(store.user.name) + '</h2>' +
+          '<span class="id">' + esc(store.user.shiftId) + '</span>' +
+          '<div class="p-stats">' +
+            '<div><strong>' + store.stats.gamesPlayed + '</strong><small>Игры</small></div>' +
+            '<div><strong>' + store.stats.messages + '</strong><small>Чаты</small></div>' +
+            '<div><strong>' + countAchievements() + '</strong><small>Награды</small></div>' +
           '</div>' +
         '</div>' +
-        '<div class="profile-links reveal reveal-d2">' +
-          [
-            { icon: '🏆', title: 'Достижения', sub: '12 разблокировано' },
-            { icon: '🎮', title: 'История игр', sub: 'Последние результаты' },
-            { icon: '⭐', title: 'Избранное', sub: 'Чаты и игры' },
-            { icon: '⚙️', title: 'Настройки', sub: 'Тема и уведомления' },
-          ].map(function (item) {
-            return '<button type="button" class="profile-link" data-profile-link="' + esc(item.title) + '">' +
-              '<span class="profile-link__icon">' + item.icon + '</span>' +
-              '<span><strong>' + esc(item.title) + '</strong><span>' + esc(item.sub) + '</span></span>' +
-              '<span class="profile-link__chev">›</span></button>';
-          }).join('') +
+        '<p class="section-label">Аккаунт</p>' +
+        '<div class="group">' +
+          '<button type="button" class="row" data-sheet="achievements"><span class="row__icon bg-orange">🏆</span><span class="row__body"><span class="row__title">Достижения</span><span class="row__sub">' + countAchievements() + ' из ' + ACHIEVEMENTS.length + '</span></span><span class="chevron">›</span></button>' +
+          '<button type="button" class="row" data-sheet="history"><span class="row__icon bg-purple">🎮</span><span class="row__body"><span class="row__title">История игр</span><span class="row__sub">Math ' + store.stats.bestMath + ' · Tap ' + store.stats.bestTap + '</span></span><span class="chevron">›</span></button>' +
+          '<button type="button" class="row" data-sheet="settings"><span class="row__icon bg-blue">⚙️</span><span class="row__body"><span class="row__title">Настройки</span><span class="row__sub">Хаптик и данные</span></span><span class="chevron">›</span></button>' +
         '</div>' +
       '</section>'
     );
   }
 
-  /* ========== Math Battle ========== */
+  /* ========== Games ========== */
+  function clearGameTimer() {
+    if (ui.game && ui.game.timerId) {
+      clearInterval(ui.game.timerId);
+      ui.game.timerId = null;
+    }
+  }
+
   function startMathBattle() {
-    state.overlay = 'play';
-    state.game = {
-      id: 'math',
+    clearGameTimer();
+    ui.overlay = 'play';
+    ui.game = {
+      kind: 'math',
       score: 0,
       time: 30,
       total: 30,
+      over: false,
       question: null,
+      timerId: null,
+    };
+    nextMathQuestion();
+    route();
+    ui.game.timerId = setInterval(function () {
+      if (!ui.game || ui.game.over || ui.game.kind !== 'math') return;
+      ui.game.time -= 1;
+      var bar = document.getElementById('timer-fill');
+      var label = document.getElementById('timer-label');
+      if (bar) bar.style.width = Math.max(0, (ui.game.time / ui.game.total) * 100) + '%';
+      if (label) label.textContent = formatTime(ui.game.time);
+      if (ui.game.time <= 0) finishGame();
+    }, 1000);
+  }
+
+  function startQuickTap() {
+    clearGameTimer();
+    ui.overlay = 'play';
+    ui.game = {
+      kind: 'tap',
+      score: 0,
+      time: 15,
+      total: 15,
       over: false,
       timerId: null,
     };
-    nextQuestion();
     route();
-    state.game.timerId = setInterval(function () {
-      if (!state.game || state.game.over) return;
-      state.game.time -= 1;
-      const bar = document.getElementById('timer-fill');
-      const label = document.getElementById('timer-label');
-      if (bar) bar.style.width = Math.max(0, (state.game.time / state.game.total) * 100) + '%';
-      if (label) label.textContent = formatTime(state.game.time);
-      if (state.game.time <= 0) endMathBattle();
+    ui.game.timerId = setInterval(function () {
+      if (!ui.game || ui.game.over || ui.game.kind !== 'tap') return;
+      ui.game.time -= 1;
+      var bar = document.getElementById('timer-fill');
+      var label = document.getElementById('timer-label');
+      if (bar) bar.style.width = Math.max(0, (ui.game.time / ui.game.total) * 100) + '%';
+      if (label) label.textContent = formatTime(ui.game.time);
+      if (ui.game.time <= 0) finishGame();
     }, 1000);
   }
 
   function formatTime(s) {
-    const m = Math.floor(s / 60);
-    const r = s % 60;
+    var m = Math.floor(s / 60);
+    var r = s % 60;
     return String(m).padStart(2, '0') + ':' + String(r).padStart(2, '0');
   }
 
-  function nextQuestion() {
-    const a = 2 + Math.floor(Math.random() * 12);
-    const b = 2 + Math.floor(Math.random() * 12);
-    const op = Math.random() > 0.45 ? '×' : '+';
-    const answer = op === '×' ? a * b : a + b;
-    const opts = new Set([answer]);
-    while (opts.size < 4) {
-      const delta = (Math.floor(Math.random() * 7) + 1) * (Math.random() > 0.5 ? 1 : -1);
-      const v = Math.max(1, answer + delta * (op === '×' ? a : 1));
-      opts.add(v);
+  function nextMathQuestion() {
+    var a = 2 + Math.floor(Math.random() * 12);
+    var b = 2 + Math.floor(Math.random() * 12);
+    var op = Math.random() > 0.4 ? '×' : '+';
+    var answer = op === '×' ? a * b : a + b;
+    var opts = {};
+    opts[answer] = true;
+    while (Object.keys(opts).length < 4) {
+      var delta = (1 + Math.floor(Math.random() * 8)) * (Math.random() > 0.5 ? 1 : -1);
+      opts[Math.max(1, answer + delta)] = true;
     }
-    const options = Array.from(opts).sort(function () { return Math.random() - 0.5; });
-    state.game.question = { a: a, b: b, op: op, answer: answer, options: options };
+    var options = Object.keys(opts).map(Number).sort(function () { return Math.random() - 0.5; });
+    ui.game.question = { a: a, b: b, op: op, answer: answer, options: options };
   }
 
-  function endMathBattle() {
-    if (!state.game) return;
-    state.game.over = true;
-    if (state.game.timerId) clearInterval(state.game.timerId);
+  function finishGame() {
+    if (!ui.game || ui.game.over) return;
+    ui.game.over = true;
+    clearGameTimer();
+    store.stats.gamesPlayed += 1;
+    unlock('first_game');
+    if (ui.game.kind === 'math') {
+      if (ui.game.score > store.stats.bestMath) store.stats.bestMath = ui.game.score;
+      if (ui.game.score >= 200) unlock('math_200');
+    }
+    if (ui.game.kind === 'tap') {
+      if (ui.game.score > store.stats.bestTap) store.stats.bestTap = ui.game.score;
+      if (ui.game.score >= 40) unlock('tap_40');
+    }
+    saveStore();
     haptic('success');
     route();
   }
 
-  function renderMathBattle() {
-    const g = state.game;
+  function renderPlay() {
+    var g = ui.game;
     if (!g) return '';
 
     if (g.over) {
       return (
-        '<section class="screen is-active" data-name="play">' +
-          '<div class="game-play">' +
-            '<div class="result-card">' +
-              '<div class="emoji">🎉</div>' +
-              '<h2>Отлично!</h2>' +
-              '<p>Ваш результат: <strong>' + g.score + '</strong></p>' +
-              '<div class="result-actions">' +
-                '<button type="button" class="btn btn--primary btn--wide" data-replay>Играть ещё</button>' +
-                '<button type="button" class="btn btn--ghost btn--wide" data-back-games>В игры</button>' +
-              '</div>' +
+        '<section class="screen is-active"><div class="play">' +
+          '<div class="result">' +
+            '<div class="emoji">🎉</div>' +
+            '<h2>Отлично!</h2>' +
+            '<p>Ваш результат: <strong>' + g.score + '</strong></p>' +
+            '<div class="actions">' +
+              '<button type="button" class="btn btn--blue btn--wide" data-replay>Играть ещё</button>' +
+              '<button type="button" class="btn btn--ghost btn--wide" data-back-games style="color:#1769FF;background:#F2F2F7">В игры</button>' +
             '</div>' +
           '</div>' +
-        '</section>'
+        '</div></section>'
       );
     }
 
-    const q = g.question;
+    if (g.kind === 'tap') {
+      return (
+        '<section class="screen is-active"><div class="play">' +
+          '<div class="play__top"><button type="button" class="back" data-back>‹</button><h1>Quick Tap</h1><span></span></div>' +
+          '<div class="score-panel"><small>Тапы</small><strong id="score-value">' + g.score + '</strong></div>' +
+          '<div class="progress"><i id="timer-fill" style="width:' + ((g.time / g.total) * 100) + '%"></i></div>' +
+          '<div class="timer-text" id="timer-label">' + formatTime(g.time) + '</div>' +
+          '<button type="button" class="tap-zone" id="tap-zone"><span class="tap-target"></span></button>' +
+        '</div></section>'
+      );
+    }
+
+    var q = g.question;
     return (
-      '<section class="screen is-active" data-name="play">' +
-        '<div class="game-play">' +
-          '<div class="game-play__top">' +
-            '<button type="button" class="icon-btn" data-back aria-label="Назад"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18 9 12l6-6"/></svg></button>' +
-            '<h2>Math Battle</h2>' +
-            '<span style="width:44px"></span>' +
-          '</div>' +
-          '<div class="score-big"><small>Score</small><strong id="score-value">' + g.score + '</strong></div>' +
-          '<div>' +
-            '<div class="timer-bar"><span id="timer-fill" style="width:' + ((g.time / g.total) * 100) + '%"></span></div>' +
-            '<div class="timer-label" id="timer-label">' + formatTime(g.time) + '</div>' +
-          '</div>' +
-          '<div class="question-card">' +
-            '<span>Решите пример</span>' +
-            '<strong>' + q.a + ' ' + q.op + ' ' + q.b + ' = ?</strong>' +
-          '</div>' +
-          '<div class="answer-grid">' +
-            q.options.map(function (opt) {
-              return '<button type="button" class="answer-btn" data-answer="' + opt + '">' + opt + '</button>';
-            }).join('') +
-          '</div>' +
+      '<section class="screen is-active"><div class="play">' +
+        '<div class="play__top"><button type="button" class="back" data-back>‹</button><h1>Math Battle</h1><span></span></div>' +
+        '<div class="score-panel"><small>Счёт</small><strong id="score-value">' + g.score + '</strong></div>' +
+        '<div class="progress"><i id="timer-fill" style="width:' + ((g.time / g.total) * 100) + '%"></i></div>' +
+        '<div class="timer-text" id="timer-label">' + formatTime(g.time) + '</div>' +
+        '<div class="q-card"><small>Решите пример</small><strong>' + q.a + ' ' + q.op + ' ' + q.b + ' = ?</strong></div>' +
+        '<div class="answers">' +
+          q.options.map(function (opt) {
+            return '<button type="button" class="answer" data-answer="' + opt + '">' + opt + '</button>';
+          }).join('') +
         '</div>' +
-      '</section>'
+      '</div></section>'
     );
   }
 
   function playGame(id) {
     haptic('medium');
-    if (id === 'math' || id === 'daily') {
-      if (state.game && state.game.timerId) clearInterval(state.game.timerId);
-      startMathBattle();
-      return;
-    }
-    const g = GAMES.find(function (x) { return x.id === id; });
-    toast((g ? g.name : 'Игра') + ' скоро — пока доступен Math Battle');
+    if (id === 'math' || id === 'daily') return startMathBattle();
+    if (id === 'tap') return startQuickTap();
+    startMathBattle();
   }
 
-  /* ========== Bindings ========== */
-  function bindCommon() {
-    refs.host.querySelectorAll('[data-go]').forEach(function (el) {
-      el.addEventListener('click', function () {
-        haptic('light');
-        state.overlay = null;
-        state.tab = el.dataset.go;
-        route();
-      });
-    });
+  /* ========== Chat logic ========== */
+  function shiftReply(text) {
+    var t = text.toLowerCase();
+    if (t.indexOf('игр') !== -1 || t.indexOf('math') !== -1) return 'Открой Shift Games → Math Battle или Quick Tap. Могу подсказать стратегию.';
+    if (t.indexOf('план') !== -1) return 'План на сегодня:\n1) Цель\n2) 3 шага\n3) Дедлайн\nНапиши цель — разложу.';
+    if (t.indexOf('картин') !== -1 || t.indexOf('изображ') !== -1) return 'Опиши сцену в 1–2 предложениях: стиль, свет, объект. Соберу промпт.';
+    if (t.indexOf('найти') !== -1 || t.indexOf('поиск') !== -1) return 'Что ищем? Могу сузить запрос и предложить варианты.';
+    if (t.indexOf('привет') !== -1) return 'Привет! Чем займёмся — чат, игра или задача?';
+    return 'Принял. Уточни детали — сделаю следующий шаг.';
+  }
 
-    refs.host.querySelectorAll('[data-open-chat]').forEach(function (el) {
-      el.addEventListener('click', function () {
-        haptic('medium');
-        state.chatId = el.dataset.openChat;
-        state.overlay = 'chat';
-        route();
-      });
-    });
-
-    refs.host.querySelectorAll('[data-play]').forEach(function (el) {
-      el.addEventListener('click', function () { playGame(el.dataset.play); });
-    });
-
-    refs.host.querySelectorAll('[data-back]').forEach(function (el) {
-      el.addEventListener('click', function () {
-        haptic('light');
-        if (state.overlay === 'play') {
-          if (state.game && state.game.timerId) clearInterval(state.game.timerId);
-          state.overlay = null;
-          state.game = null;
-          state.tab = 'games';
-          route();
-          return;
-        }
-        if (state.overlay === 'chat') {
-          const wasShiftAI = state.chatId === 'shift-ai';
-          state.overlay = null;
-          state.chatId = null;
-          state.tab = wasShiftAI ? 'ai' : 'chats';
-          route();
-        }
-      });
-    });
-
-    refs.host.querySelectorAll('[data-filter]').forEach(function (el) {
-      el.addEventListener('click', function () {
-        haptic('light');
-        state.chatFilter = el.dataset.filter;
-        if (state.chatFilter === 'ai') {
-          state.chatId = 'shift-ai';
-          state.overlay = 'chat';
-        }
-        route();
-      });
-    });
-
-    const search = document.getElementById('chat-search');
-    if (search) {
-      search.addEventListener('input', function () {
-        state.chatSearch = search.value;
-      });
-      search.addEventListener('change', function () { route(); });
-    }
-
-    refs.host.querySelectorAll('[data-ai-start]').forEach(function (el) {
-      el.addEventListener('click', function () {
-        haptic('medium');
-        state.chatId = 'shift-ai';
-        state.overlay = 'chat';
-        const action = AI_ACTIONS.find(function (a) { return a.id === el.dataset.aiStart; });
-        ensureMessages('shift-ai');
-        if (action) {
-          state.messages["shift-ai"].push({ from: 'user', text: action.title });
-          state.messages["shift-ai"].push({ from: 'shift', text: 'Отлично! Давай разберём «' + action.title + '». Напиши детали — я помогу.' });
-        }
-        route();
-      });
-    });
-
-    refs.host.querySelectorAll('[data-ai-prompt]').forEach(function (el) {
-      el.addEventListener('click', function () {
-        sendChatMessage(el.dataset.aiPrompt);
-      });
-    });
-
-    const sendBtn = refs.host.querySelector('[data-send]');
-    const input = document.getElementById('composer-input');
-    if (sendBtn && input) {
-      const send = function () {
-        const text = input.value.trim();
-        if (!text) return;
-        sendChatMessage(text);
-        input.value = '';
-      };
-      sendBtn.addEventListener('click', send);
-      input.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') send();
-      });
-    }
-
-    refs.host.querySelectorAll('[data-tool]').forEach(function (el) {
-      el.addEventListener('click', function () {
-        haptic('light');
-        const map = { attach: 'Вложение', image: 'Изображение', voice: 'Голосовой ввод' };
-        toast(map[el.dataset.tool] + ' — скоро');
-      });
-    });
-
-    refs.host.querySelectorAll('[data-answer]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        if (!state.game || state.game.over) return;
-        const val = Number(btn.dataset.answer);
-        const correct = val === state.game.question.answer;
-        btn.classList.add(correct ? 'is-correct' : 'is-wrong');
-        haptic(correct ? 'success' : 'error');
-        if (correct) {
-          state.game.score += 40;
-          const scoreEl = document.getElementById('score-value');
-          if (scoreEl) {
-            scoreEl.textContent = String(state.game.score);
-            scoreEl.classList.add('is-pop');
-            setTimeout(function () { scoreEl.classList.remove('is-pop'); }, 220);
-          }
-        }
-        setTimeout(function () {
-          if (!state.game || state.game.over) return;
-          nextQuestion();
-          route();
-        }, 280);
-      });
-    });
-
-    const replay = refs.host.querySelector('[data-replay]');
-    if (replay) replay.addEventListener('click', function () { startMathBattle(); });
-
-    const backGames = refs.host.querySelector('[data-back-games]');
-    if (backGames) {
-      backGames.addEventListener('click', function () {
-        if (state.game && state.game.timerId) clearInterval(state.game.timerId);
-        state.overlay = null;
-        state.game = null;
-        state.tab = 'games';
-        route();
-      });
-    }
-
-    refs.host.querySelectorAll('[data-profile-link]').forEach(function (el) {
-      el.addEventListener('click', function () {
-        haptic('light');
-        toast(el.dataset.profileLink);
-      });
+  function updateChatPreview(chatId, text) {
+    store.chats = store.chats.map(function (c) {
+      if (c.id !== chatId) return c;
+      return Object.assign({}, c, { preview: text.slice(0, 42), time: nowLabel(), unread: 0 });
     });
   }
 
   function sendChatMessage(text) {
-    if (!state.chatId) return;
-    haptic('light');
-    const list = ensureMessages(state.chatId);
+    if (!ui.chatId || !text) return;
+    var list = ensureMessages(ui.chatId);
     list.push({ from: 'user', text: text });
-    if (state.chatId === 'shift-ai') {
-      list.push({ from: 'shift', text: shiftReply(text) });
-    } else {
-      list.push({ from: 'shift', text: 'Принято 👍' });
+    store.stats.messages += 1;
+    if (store.stats.messages >= 10) unlock('chatty');
+    updateChatPreview(ui.chatId, text);
+    saveStore();
+    haptic('light');
+
+    if (ui.chatId === 'shift-ai') {
+      ui.typing = true;
+      route();
+      scrollMessages();
+      setTimeout(function () {
+        ui.typing = false;
+        ensureMessages('shift-ai').push({ from: 'shift', text: shiftReply(text) });
+        updateChatPreview('shift-ai', shiftReply(text));
+        saveStore();
+        route();
+        scrollMessages();
+      }, 650 + Math.random() * 500);
+      return;
     }
+
+    setTimeout(function () {
+      ensureMessages(ui.chatId).push({ from: 'shift', text: 'Ок 👍' });
+      saveStore();
+      if (ui.overlay === 'chat') {
+        route();
+        scrollMessages();
+      }
+    }, 500);
     route();
+    scrollMessages();
+  }
+
+  function scrollMessages() {
     requestAnimationFrame(function () {
-      const box = document.getElementById('msg-list');
+      var box = document.getElementById('msg-list');
       if (box) box.scrollTop = box.scrollHeight;
     });
   }
 
-  function shiftReply(text) {
-    const t = text.toLowerCase();
-    if (t.indexOf('игр') !== -1) return 'Могу открыть Shift Games. Попробуй Math Battle — сегодня Daily Challenge 🏆';
-    if (t.indexOf('план') !== -1) return 'Давай составим план: 1) цель 2) шаги 3) дедлайн. Напиши цель.';
-    if (t.indexOf('картин') !== -1 || t.indexOf('изображ') !== -1) return 'Опиши сцену — подскажу идею промпта для изображения.';
-    return 'Понятно! Расскажи чуть подробнее — помогу быстрее.';
+  /* ========== Sheets ========== */
+  function openSheet(kind) {
+    ui.sheet = kind;
+    var html = '';
+    if (kind === 'settings') {
+      html =
+        '<div class="sheet">' +
+          '<div class="sheet__handle"></div><h3>Настройки</h3>' +
+          '<div class="group">' +
+            '<button type="button" class="toggle-row" data-toggle="haptics"><span>Тактильный отклик</span><span class="toggle' + (store.settings.haptics ? ' is-on' : '') + '" id="tog-haptics"></span></button>' +
+          '</div>' +
+          '<div class="group" style="margin-top:12px">' +
+            '<button type="button" class="row" data-reset><span class="row__body"><span class="row__title" style="color:#FF3B30">Сбросить данные</span></span></button>' +
+          '</div>' +
+          '<button type="button" class="btn btn--primary btn--wide" style="margin-top:16px" data-close-sheet>Закрыть</button>' +
+        '</div>';
+    } else if (kind === 'achievements') {
+      html =
+        '<div class="sheet">' +
+          '<div class="sheet__handle"></div><h3>Достижения</h3>' +
+          '<div class="group">' +
+            ACHIEVEMENTS.map(function (a) {
+              var on = !!store.achievements[a.id];
+              return '<div class="row"><span class="row__icon ' + (on ? 'bg-orange' : 'bg-blue') + '" style="opacity:' + (on ? 1 : 0.45) + '">' + a.icon + '</span>' +
+                '<span class="row__body"><span class="row__title">' + esc(a.title) + '</span><span class="row__sub">' + esc(a.sub) + (on ? ' · получено' : '') + '</span></span></div>';
+            }).join('') +
+          '</div>' +
+          '<button type="button" class="btn btn--primary btn--wide" style="margin-top:16px" data-close-sheet>Закрыть</button>' +
+        '</div>';
+    } else {
+      html =
+        '<div class="sheet">' +
+          '<div class="sheet__handle"></div><h3>История игр</h3>' +
+          '<div class="group">' +
+            '<div class="row"><span class="row__body"><span class="row__title">Math Battle</span><span class="row__sub">Лучший счёт</span></span><span class="row__meta">' + store.stats.bestMath + '</span></div>' +
+            '<div class="row"><span class="row__body"><span class="row__title">Quick Tap</span><span class="row__sub">Лучший счёт</span></span><span class="row__meta">' + store.stats.bestTap + '</span></div>' +
+            '<div class="row"><span class="row__body"><span class="row__title">Всего игр</span></span><span class="row__meta">' + store.stats.gamesPlayed + '</span></div>' +
+          '</div>' +
+          '<button type="button" class="btn btn--primary btn--wide" style="margin-top:16px" data-close-sheet>Закрыть</button>' +
+        '</div>';
+    }
+    refs.sheet.innerHTML = html;
+    refs.sheet.classList.add('is-open');
+    refs.sheet.setAttribute('aria-hidden', 'false');
+    bindSheet();
+  }
+
+  function closeSheet() {
+    ui.sheet = null;
+    refs.sheet.classList.remove('is-open');
+    refs.sheet.setAttribute('aria-hidden', 'true');
+    refs.sheet.innerHTML = '';
+  }
+
+  function bindSheet() {
+    var closeBtn = refs.sheet.querySelector('[data-close-sheet]');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', function () {
+        haptic('light');
+        closeSheet();
+      });
+    }
+    refs.sheet.addEventListener('click', function (e) {
+      if (e.target === refs.sheet) closeSheet();
+    });
+    var tog = refs.sheet.querySelector('[data-toggle="haptics"]');
+    if (tog) {
+      tog.addEventListener('click', function () {
+        store.settings.haptics = !store.settings.haptics;
+        saveStore();
+        haptic('selection');
+        openSheet('settings');
+      });
+    }
+    var reset = refs.sheet.querySelector('[data-reset]');
+    if (reset) {
+      reset.addEventListener('click', function () {
+        if (!confirm('Сбросить весь прогресс Shift?')) return;
+        localStorage.removeItem(STORE_KEY);
+        store = loadStore();
+        store.chats = CHATS_SEED.map(function (c) { return Object.assign({}, c); });
+        saveStore();
+        closeSheet();
+        toast('Данные сброшены');
+        route();
+      });
+    }
+  }
+
+  /* ========== Bind ========== */
+  function bind() {
+    refs.host.querySelectorAll('[data-go]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        haptic('selection');
+        ui.overlay = null;
+        ui.tab = el.dataset.go;
+        route();
+      });
+    });
+    refs.host.querySelectorAll('[data-open-chat]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        haptic('light');
+        ui.chatId = el.dataset.openChat;
+        store.chats = store.chats.map(function (c) {
+          return c.id === ui.chatId ? Object.assign({}, c, { unread: 0 }) : c;
+        });
+        saveStore();
+        ui.overlay = 'chat';
+        ui.navDir = 'push';
+        route();
+      });
+    });
+    refs.host.querySelectorAll('[data-play]').forEach(function (el) {
+      el.addEventListener('click', function () { playGame(el.dataset.play); });
+    });
+    refs.host.querySelectorAll('[data-back]').forEach(function (el) {
+      el.addEventListener('click', goBack);
+    });
+    refs.host.querySelectorAll('[data-filter]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        haptic('selection');
+        ui.chatFilter = el.dataset.filter;
+        if (ui.chatFilter === 'ai') {
+          ui.chatId = 'shift-ai';
+          ui.overlay = 'chat';
+        }
+        route();
+      });
+    });
+    var search = document.getElementById('chat-search');
+    if (search) {
+      search.addEventListener('search', function () {
+        ui.chatSearch = search.value;
+        route();
+      });
+      search.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+          ui.chatSearch = search.value;
+          route();
+        }
+      });
+    }
+    refs.host.querySelectorAll('[data-ai-start]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var action = AI_ACTIONS.find(function (a) { return a.id === el.dataset.aiStart; });
+        ui.chatId = 'shift-ai';
+        ui.overlay = 'chat';
+        route();
+        if (action) setTimeout(function () { sendChatMessage(action.title); }, 40);
+      });
+    });
+    refs.host.querySelectorAll('[data-ai-prompt]').forEach(function (el) {
+      el.addEventListener('click', function () { sendChatMessage(el.dataset.aiPrompt); });
+    });
+
+    var input = document.getElementById('composer-input');
+    var sendBtn = document.getElementById('composer-send');
+    if (input && sendBtn) {
+      var syncSend = function () {
+        sendBtn.classList.toggle('is-ready', input.value.trim().length > 0);
+      };
+      input.addEventListener('input', function () {
+        syncSend();
+        input.style.height = 'auto';
+        input.style.height = Math.min(100, input.scrollHeight) + 'px';
+      });
+      syncSend();
+      var doSend = function () {
+        var text = input.value.trim();
+        if (!text) return;
+        input.value = '';
+        input.style.height = 'auto';
+        sendChatMessage(text);
+      };
+      sendBtn.addEventListener('click', doSend);
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          doSend();
+        }
+      });
+    }
+
+    var fileInput = document.getElementById('file-input');
+    var attach = refs.host.querySelector('[data-attach]');
+    if (attach && fileInput) {
+      attach.addEventListener('click', function () {
+        haptic('light');
+        fileInput.click();
+      });
+      fileInput.addEventListener('change', function () {
+        if (!fileInput.files || !fileInput.files[0]) return;
+        var name = fileInput.files[0].name;
+        sendChatMessage('📎 ' + name);
+        fileInput.value = '';
+      });
+    }
+
+    refs.host.querySelectorAll('[data-answer]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (!ui.game || ui.game.over) return;
+        var val = Number(btn.dataset.answer);
+        var ok = val === ui.game.question.answer;
+        btn.classList.add(ok ? 'ok' : 'bad');
+        haptic(ok ? 'success' : 'error');
+        if (ok) {
+          ui.game.score += 40;
+          var scoreEl = document.getElementById('score-value');
+          if (scoreEl) {
+            scoreEl.textContent = String(ui.game.score);
+            scoreEl.classList.add('pop');
+            setTimeout(function () { scoreEl.classList.remove('pop'); }, 180);
+          }
+        }
+        setTimeout(function () {
+          if (!ui.game || ui.game.over) return;
+          nextMathQuestion();
+          route();
+        }, 220);
+      });
+    });
+
+    var tapZone = document.getElementById('tap-zone');
+    if (tapZone) {
+      tapZone.addEventListener('pointerdown', function (e) {
+        e.preventDefault();
+        if (!ui.game || ui.game.over || ui.game.kind !== 'tap') return;
+        ui.game.score += 1;
+        haptic('light');
+        var scoreEl = document.getElementById('score-value');
+        if (scoreEl) {
+          scoreEl.textContent = String(ui.game.score);
+          scoreEl.classList.add('pop');
+          setTimeout(function () { scoreEl.classList.remove('pop'); }, 120);
+        }
+      });
+    }
+
+    var replay = refs.host.querySelector('[data-replay]');
+    if (replay) {
+      replay.addEventListener('click', function () {
+        if (ui.game && ui.game.kind === 'tap') startQuickTap();
+        else startMathBattle();
+      });
+    }
+    var backGames = refs.host.querySelector('[data-back-games]');
+    if (backGames) {
+      backGames.addEventListener('click', function () {
+        clearGameTimer();
+        ui.overlay = null;
+        ui.game = null;
+        ui.tab = 'games';
+        route();
+      });
+    }
+
+    refs.host.querySelectorAll('[data-sheet]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        haptic('light');
+        openSheet(el.dataset.sheet);
+      });
+    });
+  }
+
+  function goBack() {
+    haptic('light');
+    ui.navDir = 'back';
+    if (ui.overlay === 'play') {
+      clearGameTimer();
+      ui.overlay = null;
+      ui.game = null;
+      ui.tab = 'games';
+      route();
+      return;
+    }
+    if (ui.overlay === 'chat') {
+      var wasAi = ui.chatId === 'shift-ai';
+      ui.overlay = null;
+      ui.chatId = null;
+      ui.tab = wasAi ? 'ai' : 'chats';
+      route();
+    }
   }
 
   /* ========== Route ========== */
   function route() {
-    document.body.dataset.screen = state.overlay || state.tab;
-    setBackVisible(!!state.overlay);
-
-    let html = '';
-    if (state.overlay === 'chat') html = renderChatThread();
-    else if (state.overlay === 'play') html = renderMathBattle();
-    else if (state.tab === 'home') html = renderHome();
-    else if (state.tab === 'chats') html = renderChats();
-    else if (state.tab === 'ai') html = renderAI();
-    else if (state.tab === 'games') html = renderGames();
-    else if (state.tab === 'profile') html = renderProfile();
+    document.body.dataset.screen = ui.overlay || ui.tab;
+    setBackVisible(!!ui.overlay);
+    var html = '';
+    if (ui.overlay === 'chat') html = renderChatThread();
+    else if (ui.overlay === 'play') html = renderPlay();
+    else if (ui.tab === 'home') html = renderHome();
+    else if (ui.tab === 'chats') html = renderChats();
+    else if (ui.tab === 'ai') html = renderAI();
+    else if (ui.tab === 'games') html = renderGames();
+    else if (ui.tab === 'profile') html = renderProfile();
     else html = renderHome();
 
     refs.host.innerHTML = html;
+    var screen = refs.host.querySelector('.screen');
+    if (screen && ui.navDir === 'back') screen.classList.add('is-back');
     renderNav();
-    bindCommon();
-
-    if (state.overlay === 'chat') {
-      setMainButton({ visible: false });
-    } else if (state.tab === 'games' && !state.overlay) {
-      setMainButton({
-        visible: true,
-        text: 'Играть',
-        onClick: function () { playGame('math'); },
-      });
-    } else if (state.tab === 'ai' && !state.overlay) {
-      setMainButton({
-        visible: true,
-        text: 'Спросить Shift',
-        onClick: function () {
-          state.chatId = 'shift-ai';
-          state.overlay = 'chat';
-          route();
-        },
-      });
-    } else {
-      setMainButton({ visible: false });
-    }
+    bind();
   }
 
   function hydrateUser() {
-    const params = new URLSearchParams(window.location.search);
-    const name = params.get('name');
+    var params = new URLSearchParams(window.location.search);
+    var name = params.get('name');
     if (name) {
-      USER.name = name;
-      USER.avatar = name.trim().charAt(0).toUpperCase() || 'И';
+      store.user.name = name;
+      store.user.avatar = name.trim().charAt(0).toUpperCase() || 'И';
+      store.user.shiftId = '@' + name.trim().toLowerCase().replace(/\s+/g, '');
+      saveStore();
+    }
+    if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+      var u = tg.initDataUnsafe.user;
+      if (u.first_name) {
+        store.user.name = u.first_name;
+        store.user.avatar = u.first_name.charAt(0).toUpperCase();
+        if (u.username) store.user.shiftId = '@' + u.username;
+        saveStore();
+      }
     }
   }
 
   function boot() {
+    initTelegram({ onBack: goBack });
     hydrateUser();
-    initTelegram({
-      onBack: function () {
-        if (state.overlay) {
-          if (state.game && state.game.timerId) clearInterval(state.game.timerId);
-          state.overlay = null;
-          state.game = null;
-          route();
-        }
-      },
-    });
     route();
     refs.root.classList.add('is-booted');
   }
