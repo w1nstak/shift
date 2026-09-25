@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var STORE_KEY = 'shift-app-v1';
+  var STORE_KEY = 'shift-app-v2';
 
   /* ========== Telegram ========== */
   var tg = null;
@@ -32,8 +32,8 @@
       if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
     } catch (e) {}
     try {
-      if (tg.setHeaderColor) tg.setHeaderColor('#F2F2F7');
-      if (tg.setBackgroundColor) tg.setBackgroundColor('#F2F2F7');
+      if (tg.setHeaderColor) tg.setHeaderColor('#060B16');
+      if (tg.setBackgroundColor) tg.setBackgroundColor('#060B16');
     } catch (e) {}
     if (typeof tg.onEvent === 'function') {
       tg.onEvent('themeChanged', function () {});
@@ -94,13 +94,15 @@
 
   var CHATS_SEED = [
     { id: 'shift-ai', name: 'Shift AI', preview: 'Чем могу помочь?', time: 'сейчас', unread: 0, type: 'ai', color: 'ai', avatar: '✨', iconBg: 'bg-teal' },
-    { id: 'masha', name: 'Маша', preview: 'Ок, давай в 19:00', time: '12:40', unread: 2, type: 'personal', color: 'pink', avatar: 'М', iconBg: 'bg-pink' },
-    { id: 'dev', name: 'Shift Dev', preview: 'Новый билд готов', time: '11:02', unread: 0, type: 'group', color: 'violet', avatar: 'D', iconBg: 'bg-purple' },
-    { id: 'leo', name: 'Leo', preview: 'Залетай в Math Battle', time: 'вчера', unread: 1, type: 'personal', color: 'green', avatar: 'L', iconBg: 'bg-green' },
-    { id: 'team', name: 'Команда Shift', preview: 'Daily Challenge открыт', time: 'вчера', unread: 3, type: 'group', color: 'violet', avatar: 'S', iconBg: 'bg-blue' },
   ];
 
-  if (!store.chats) store.chats = CHATS_SEED.map(function (c) { return Object.assign({}, c); });
+  if (!store.chats) {
+    store.chats = CHATS_SEED.map(function (c) { return Object.assign({}, c); });
+  } else {
+    store.chats = store.chats.filter(function (c) { return c.id === 'shift-ai'; });
+    if (!store.chats.length) store.chats = CHATS_SEED.map(function (c) { return Object.assign({}, c); });
+    saveStore();
+  }
 
   var GAMES = [
     { id: 'math', name: 'Math Battle', desc: 'Считай быстрее всех', emoji: '🧠', difficulty: 'Средняя', featured: true },
@@ -215,8 +217,6 @@
 
   /* ========== Screens ========== */
   function renderHome() {
-    var recent = store.chats.filter(function (c) { return c.id !== 'shift-ai'; }).slice(0, 3);
-    var unread = store.chats.reduce(function (s, c) { return s + (c.unread || 0); }, 0);
     return (
       '<section class="screen is-active">' +
         '<p class="greeting">' + greeting() + '</p>' +
@@ -229,24 +229,17 @@
         '<p class="section-label">Ярлыки</p>' +
         '<div class="shortcuts">' +
           '<button type="button" class="shortcut" data-go="ai"><span class="shortcut__icon bg-teal">✨</span><span>Shift</span></button>' +
-          '<button type="button" class="shortcut" data-go="chats"><span class="shortcut__icon bg-blue">💬</span><span>Чаты' + (unread ? ' · ' + unread : '') + '</span></button>' +
+          '<button type="button" class="shortcut" data-go="chats"><span class="shortcut__icon bg-blue">💬</span><span>Чаты</span></button>' +
           '<button type="button" class="shortcut" data-play="math"><span class="shortcut__icon bg-orange">🧠</span><span>Math</span></button>' +
           '<button type="button" class="shortcut" data-play="tap"><span class="shortcut__icon bg-pink">🎯</span><span>Tap</span></button>' +
         '</div>' +
 
-        '<div class="section-row"><p class="section-label">Недавние</p><button type="button" class="see-all" data-go="chats">Все</button></div>' +
+        '<p class="section-label">Ассистент</p>' +
         '<div class="group">' +
           '<button type="button" class="row" data-open-chat="shift-ai">' +
             '<span class="row__icon bg-teal">✨</span>' +
             '<span class="row__body"><span class="row__title">Shift AI</span><span class="row__sub">Спросить что угодно</span></span>' +
             '<span class="chevron">›</span></button>' +
-          recent.map(function (c) {
-            return '<button type="button" class="row" data-open-chat="' + c.id + '">' +
-              '<span class="row__icon ' + c.iconBg + '">' + esc(c.avatar) + '</span>' +
-              '<span class="row__body"><span class="row__title">' + esc(c.name) + '</span><span class="row__sub">' + esc(c.preview) + '</span></span>' +
-              (c.unread ? '<span class="badge">' + c.unread + '</span>' : '<span class="row__meta">' + esc(c.time) + '</span>') +
-              '<span class="chevron">›</span></button>';
-          }).join('') +
         '</div>' +
 
         '<p class="section-label">Продолжить</p>' +
@@ -265,49 +258,17 @@
   }
 
   function renderChats() {
-    var q = (ui.chatSearch || '').toLowerCase();
-    var list = store.chats.filter(function (c) {
-      if (c.id === 'shift-ai') return false;
-      if (ui.chatFilter === 'personal' && c.type !== 'personal') return false;
-      if (ui.chatFilter === 'group' && c.type !== 'group') return false;
-      if (ui.chatFilter === 'ai') return false;
-      if (q && c.name.toLowerCase().indexOf(q) === -1 && c.preview.toLowerCase().indexOf(q) === -1) return false;
-      return true;
-    });
-    var filters = [
-      { id: 'all', label: 'Все' },
-      { id: 'personal', label: 'Личные' },
-      { id: 'group', label: 'Группы' },
-      { id: 'ai', label: 'AI' },
-    ];
     return (
       '<section class="screen is-active">' +
         '<h1 class="large-title">Чаты</h1>' +
-        '<div class="search">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg>' +
-          '<input id="chat-search" type="search" placeholder="Поиск" value="' + esc(ui.chatSearch) + '" enterkeyhint="search" />' +
-        '</div>' +
-        '<div class="segmented">' +
-          filters.map(function (f) {
-            return '<button type="button" class="' + (ui.chatFilter === f.id ? 'is-active' : '') + '" data-filter="' + f.id + '">' + f.label + '</button>';
-          }).join('') +
-        '</div>' +
-        '<button type="button" class="banner" data-open-chat="shift-ai">' +
+        '<button type="button" class="banner" data-open-chat="shift-ai" style="margin-top:12px">' +
           '<span class="banner__icon">✨</span>' +
           '<span><strong>Shift AI</strong><span>Чем могу помочь?</span></span>' +
           '<span class="chevron" style="margin-left:auto">›</span>' +
         '</button>' +
-        (ui.chatFilter === 'ai' ? '' : (
-          '<div class="group">' +
-            (list.length ? list.map(function (c) {
-              return '<button type="button" class="row" data-open-chat="' + c.id + '">' +
-                '<span class="row__icon ' + c.iconBg + '">' + esc(c.avatar) + '</span>' +
-                '<span class="row__body"><span class="row__title">' + esc(c.name) + '</span><span class="row__sub">' + esc(c.preview) + '</span></span>' +
-                (c.unread ? '<span class="badge">' + c.unread + '</span>' : '<span class="row__meta">' + esc(c.time) + '</span>') +
-                '<span class="chevron">›</span></button>';
-            }).join('') : '<div class="row"><span class="row__body"><span class="row__sub">Ничего не найдено</span></span></div>') +
-          '</div>'
-        )) +
+        '<div class="group">' +
+          '<div class="empty-state">Пока только чат со Shift.<br/>Личные диалоги появятся позже.</div>' +
+        '</div>' +
       '</section>'
     );
   }

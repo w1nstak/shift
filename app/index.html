@@ -3,9 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" content="#F2F2F7" />
+    <meta name="theme-color" content="#060B16" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Shift" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="format-detection" content="telephone=no" />
@@ -14,15 +14,16 @@
     <link rel="apple-touch-icon" href="icon.svg" />
     <title>Shift</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="styles.css?v=ios-native1" />
+    <link rel="stylesheet" href="styles.css?v=dark-blue1" />
   </head>
   <body>
     <div id="shift-root" class="shift-app">
+      <div class="shift-ambient" aria-hidden="true"></div>
       <div id="screen-host" class="screen-host"></div>
       <nav id="bottom-nav" class="shift-nav" aria-label="Навигация"></nav>
     </div>
     <div id="toast-host" class="toast-host" aria-live="polite"></div>
     <div id="sheet-host" class="sheet-host" aria-hidden="true"></div>
-    <script src="app.js?v=ios-native1"></script>
+    <script src="app.js?v=dark-blue1"></script>
   </body>
 </html>
