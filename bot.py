@@ -21,7 +21,7 @@ from aiogram.types import (
 
 import db
 import games
-from config import BOT_NAME, BOT_TOKEN, FOUNDER_ITEM, FOUNDER_PROFIT_BONUS, MINI_APP_URL, PREFIXES
+from config import BOT_NAME, BOT_TOKEN, FOUNDER_ITEM, FOUNDER_PROFIT_BONUS, GAME_API_URL, MINI_APP_URL, PREFIXES
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("shift")
@@ -127,6 +127,8 @@ async def build_mini_app_url(message: Message, uid: int, cid: int) -> str:
         "shield": int(inv.get("щит", 0) or 0),
         "inventory": json.dumps(inv, ensure_ascii=False),
     }
+    if GAME_API_URL:
+        params["api"] = GAME_API_URL
     clan = await db.get_user_clan(uid, cid)
     if clan:
         members = await db.get_clan_members(clan["clan_id"])
@@ -2326,6 +2328,20 @@ async def main():
 
     me = await bot.get_me()
     log.info("Starting %s (@%s)...", BOT_NAME, me.username)
+
+    # Sea Battle realtime API (same process)
+    try:
+        from seabattle.server import start_game_api
+        await start_game_api()
+        if GAME_API_URL:
+            log.info("Sea Battle public API: %s", GAME_API_URL)
+        else:
+            log.warning(
+                "GAME_API_URL не задан — мини-апп не достучится до API с GitHub Pages. "
+                "Укажи публичный URL (ngrok/VPS) в .env"
+            )
+    except Exception:
+        log.exception("Не удалось запустить Sea Battle API")
 
     await bot.set_my_commands([
         {"command": "start", "description": "🌟 Запуск бота"},

@@ -57,13 +57,14 @@
   /* ========== Store ========== */
   function defaultStore() {
     return {
-      user: { name: 'Игрок', shiftId: '@player', avatar: 'И' },
+      user: { name: 'Игрок', shiftId: '@player', avatar: 'И', coins: 0, userId: 0, chatId: 0, level: 1 },
       settings: { haptics: true, sounds: true },
       stats: { gamesPlayed: 0, bestMath: 0, bestTap: 0, streak: 1, messages: 0 },
       achievements: {},
       messages: {},
       chats: null,
       clan: null,
+      api: '',
     };
   }
 
@@ -80,6 +81,7 @@
         achievements: Object.assign({}, parsed.achievements || {}),
         messages: Object.assign({}, parsed.messages || {}),
         clan: parsed.clan || null,
+        api: parsed.api || '',
       });
     } catch (e) {
       return defaultStore();
@@ -107,7 +109,8 @@
   }
 
   var GAMES = [
-    { id: 'math', name: 'Math Battle', desc: 'Считай быстрее всех', icon: 'brain', difficulty: 'Средняя', featured: true },
+    { id: 'sea', name: 'Shift Sea Battle', desc: 'Онлайн морской бой · S-Coins', icon: 'anchor', difficulty: 'Мультиплеер', featured: true },
+    { id: 'math', name: 'Math Battle', desc: 'Считай быстрее всех', icon: 'brain', difficulty: 'Средняя' },
     { id: 'tap', name: 'Quick Tap', desc: 'Нажми цель как можно чаще', icon: 'target', difficulty: 'Лёгкая' },
     { id: 'daily', name: 'Daily Challenge', desc: 'Ежедневный Math Battle', icon: 'trophy', difficulty: 'Челлендж' },
   ];
@@ -151,6 +154,7 @@
     plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
     send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h12"/><path d="m12 6 6 6-6 6"/></svg>',
     back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m14 6-6 6 6 6"/></svg>',
+    anchor: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="6" r="2.2"/><path d="M12 8.2V20M8 12h8M7.2 16.5A6 6 0 0 0 12 20a6 6 0 0 0 4.8-3.5"/></svg>',
   };
 
   function icon(name, cls) {
@@ -303,8 +307,8 @@
 
         '<p class="section-label">Ярлыки</p>' +
         '<div class="shortcuts">' +
-          '<button type="button" class="shortcut" data-go="ai"><span class="shortcut__icon bg-teal">' + icon('sparkles') + '</span><span>Shift</span></button>' +
-          '<button type="button" class="shortcut" data-go="chats"><span class="shortcut__icon bg-blue">' + icon('chat') + '</span><span>Чаты</span></button>' +
+          '<button type="button" class="shortcut" data-play="sea"><span class="shortcut__icon bg-teal">' + icon('anchor') + '</span><span>Sea</span></button>' +
+          '<button type="button" class="shortcut" data-go="ai"><span class="shortcut__icon bg-blue">' + icon('sparkles') + '</span><span>Shift</span></button>' +
           '<button type="button" class="shortcut" data-play="math"><span class="shortcut__icon bg-orange">' + icon('brain') + '</span><span>Math</span></button>' +
           '<button type="button" class="shortcut" data-play="tap"><span class="shortcut__icon bg-pink">' + icon('target') + '</span><span>Tap</span></button>' +
         '</div>' +
@@ -423,19 +427,19 @@
       '<section class="screen is-active">' +
         '<p class="greeting">Shift Games</p>' +
         '<h1 class="large-title">Игры</h1>' +
-        '<p class="subtitle">Небольшие игры, чтобы развлечься и получить награды.</p>' +
+        '<p class="subtitle">Мультиплеер и аркады · S-Coins</p>' +
         '<div style="margin-top:16px">' +
-          '<button type="button" class="featured glass" data-play="daily">' +
-            '<span class="tag">Daily Challenge</span>' +
-            '<h3>Math Battle</h3>' +
-            '<p>Сегодняшний челлендж · рекорд ' + store.stats.bestMath + '</p>' +
+          '<button type="button" class="featured glass" data-play="sea">' +
+            '<span class="tag">Online · S-Coins</span>' +
+            '<h3>⚓ Shift Sea Battle</h3>' +
+            '<p>Морской бой 1v1 · ставки и рейтинг</p>' +
           '<span class="btn btn--primary" style="min-height:36px;padding:0 14px;font-size:15px;border-radius:14px">Играть</span>' +
           '</button>' +
         '</div>' +
         '<p class="section-label">Все игры</p>' +
         '<div class="group glass">' +
           GAMES.map(function (g) {
-            var best = g.id === 'tap' ? store.stats.bestTap : store.stats.bestMath;
+            var best = g.id === 'tap' ? store.stats.bestTap : g.id === 'math' || g.id === 'daily' ? store.stats.bestMath : 'PvP';
             return '<button type="button" class="row" data-play="' + g.id + '">' +
               '<span class="game-art">' + icon(g.icon) + '</span>' +
               '<span class="row__body"><span class="row__title">' + esc(g.name) + '</span><span class="row__sub">' + esc(g.desc) + ' · ' + esc(g.difficulty) + '</span></span>' +
@@ -627,9 +631,36 @@
 
   function playGame(id) {
     haptic('medium');
+    if (id === 'sea') return openSeaBattle();
     if (id === 'math' || id === 'daily') return startMathBattle();
     if (id === 'tap') return startQuickTap();
     startMathBattle();
+  }
+
+  function openSeaBattle() {
+    if (!window.ShiftSeaBattle) {
+      toast('Sea Battle не загружен');
+      return;
+    }
+    var params = new URLSearchParams(window.location.search);
+    ShiftSeaBattle.open({
+      coins: store.user.coins != null ? store.user.coins : Number(params.get('balance') || 0),
+      userId: store.user.userId || Number(params.get('user_id') || 0),
+      chatId: store.user.chatId || Number(params.get('chat_id') || params.get('user_id') || 0),
+      name: store.user.name,
+      level: store.user.level || Number(params.get('level') || 1),
+      api: store.api || params.get('api') || '',
+      hooks: {
+        haptic: haptic,
+        toast: toast,
+        getTg: getTg,
+        onExit: function () {
+          ui.overlay = null;
+          ui.tab = 'games';
+          route();
+        },
+      },
+    });
   }
 
   /* ========== Chat logic ========== */
@@ -967,6 +998,9 @@
 
   function goBack() {
     haptic('light');
+    if (window.ShiftSeaBattle && ShiftSeaBattle.isOpen && ShiftSeaBattle.isOpen()) {
+      if (ShiftSeaBattle.handleBack()) return;
+    }
     ui.navDir = 'back';
     if (ui.overlay === 'play') {
       clearGameTimer();
@@ -1013,6 +1047,19 @@
       store.user.shiftId = '@' + name.trim().toLowerCase().replace(/\s+/g, '');
       saveStore();
     }
+    var balance = params.get('balance');
+    if (balance != null && balance !== '') {
+      var coins = parseInt(balance, 10);
+      if (!isNaN(coins)) store.user.coins = coins;
+    }
+    var uid = params.get('user_id');
+    if (uid) store.user.userId = parseInt(uid, 10) || 0;
+    var cid = params.get('chat_id');
+    if (cid) store.user.chatId = parseInt(cid, 10) || store.user.userId;
+    var level = params.get('level');
+    if (level) store.user.level = parseInt(level, 10) || 1;
+    var api = params.get('api');
+    if (api) store.api = api;
     var streak = params.get('streak');
     if (streak != null && streak !== '') {
       var n = parseInt(streak, 10);
@@ -1027,6 +1074,7 @@
         store.user.name = u.first_name;
         store.user.avatar = u.first_name.charAt(0).toUpperCase();
         if (u.username) store.user.shiftId = '@' + u.username;
+        if (u.id) store.user.userId = u.id;
         saveStore();
       }
     }

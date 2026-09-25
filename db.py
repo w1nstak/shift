@@ -1,5 +1,5 @@
 import aiosqlite
-from config import DB_PATH
+from config import DB_PATH, FOUNDER_ITEM, FOUNDER_LIMIT
 
 
 async def init_db() -> None:
@@ -99,6 +99,30 @@ async def init_db() -> None:
                 winner_id INTEGER,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 finished_at TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS seabattle_stats (
+                user_id INTEGER NOT NULL,
+                chat_id INTEGER NOT NULL,
+                wins INTEGER DEFAULT 0,
+                losses INTEGER DEFAULT 0,
+                coins_won INTEGER DEFAULT 0,
+                coins_lost INTEGER DEFAULT 0,
+                shots INTEGER DEFAULT 0,
+                hits INTEGER DEFAULT 0,
+                best_streak INTEGER DEFAULT 0,
+                streak INTEGER DEFAULT 0,
+                PRIMARY KEY (user_id, chat_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS seabattle_matches (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                room_id TEXT,
+                chat_id INTEGER,
+                winner_id INTEGER,
+                loser_id INTEGER,
+                stake INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             """
         )
@@ -400,6 +424,88 @@ async def record_game(user_id: int, chat_id: int, won: bool) -> None:
             (user_id, chat_id),
         )
         await db.commit()
+
+
+async def record_seabattle_result(
+    user_id: int,
+    chat_id: int,
+    won: bool,
+    stake: int,
+    shots: int,
+    hits: int,
+) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """
+            INSERT INTO seabattle_stats (user_id, chat_id, wins, losses, coins_won, coins_lost, shots, hits, best_streak, streak)
+            VALUES (?, ?, 0, 0, 0, 0, 0, 0, 0, 0)
+            ON CONFLICT(user_id, chat_id) DO NOTHING
+            """,
+            (user_id, chat_id),
+        )
+        if won:
+            await db.execute(
+                """
+                UPDATE seabattle_stats SET
+                    wins = wins + 1,
+                    coins_won = coins_won + ?,
+                    shots = shots + ?,
+                    hits = hits + ?,
+                    streak = streak + 1,
+                    best_streak = CASE WHEN streak + 1 > best_streak THEN streak + 1 ELSE best_streak END
+                WHERE user_id = ? AND chat_id = ?
+                """,
+                (stake * 2, shots, hits, user_id, chat_id),
+            )
+        else:
+            await db.execute(
+                """
+                UPDATE seabattle_stats SET
+                    losses = losses + 1,
+                    coins_lost = coins_lost + ?,
+                    shots = shots + ?,
+                    hits = hits + ?,
+                    streak = 0
+                WHERE user_id = ? AND chat_id = ?
+                """,
+                (stake, shots, hits, user_id, chat_id),
+            )
+        await db.commit()
+
+
+async def get_seabattle_stats(user_id: int, chat_id: int) -> dict:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM seabattle_stats WHERE user_id = ? AND chat_id = ?",
+            (user_id, chat_id),
+        ) as cur:
+            row = await cur.fetchone()
+            if not row:
+                return {
+                    "wins": 0, "losses": 0, "coins_won": 0, "coins_lost": 0,
+                    "shots": 0, "hits": 0, "best_streak": 0, "streak": 0,
+                }
+            return dict(row)
+
+
+async def seabattle_leaderboard(chat_id: int, period: str = "all", limit: int = 20) -> list[dict]:
+    """period: today | week | all — currently all-time from seabattle_stats."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """
+            SELECT s.*, u.first_name, u.username, u.level
+            FROM seabattle_stats s
+            LEFT JOIN users u ON u.user_id = s.user_id AND u.chat_id = s.chat_id
+            WHERE s.chat_id = ? AND (s.wins + s.losses) > 0
+            ORDER BY s.wins DESC, s.coins_won DESC
+            LIMIT ?
+            """,
+            (chat_id, limit),
+        ) as cur:
+            rows = await cur.fetchall()
+            return [dict(r) for r in rows]
 
 
 async def set_cooldown(user_id: int, chat_id: int, field: str, ts: float) -> None:
