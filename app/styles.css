@@ -1107,6 +1107,25 @@ button { cursor: pointer; }
   font-weight: 600;
   color: #fff;
   background: var(--ios-blue);
+  overflow: hidden;
+  position: relative;
+}
+.avatar-xl--photo {
+  padding: 0;
+  background: var(--bg-elevated-solid);
+}
+.avatar-xl img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  z-index: 1;
+}
+.avatar-xl__fallback {
+  position: relative;
+  z-index: 0;
 }
 .profile-card h2 {
   margin: 0 0 2px;

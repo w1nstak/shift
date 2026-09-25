@@ -19,7 +19,7 @@ log = logging.getLogger("shift.seabattle.api")
 def _cors_headers() -> dict:
     return {
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Telegram-Init-Data, X-Shift-User, X-Shift-Chat, X-Shift-Name, X-Shift-Level",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Telegram-Init-Data, X-Shift-User, X-Shift-Chat, X-Shift-Name, X-Shift-Level, X-Shift-Photo",
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     }
 
@@ -55,18 +55,33 @@ def resolve_player(request: web.Request) -> tuple[int, int, dict]:
     if verified and verified.get("user"):
         u = verified["user"]
         user_id = int(u["id"])
-        name = (u.get("first_name") or "Игрок").strip()
+        first = (u.get("first_name") or "").strip()
+        last = (u.get("last_name") or "").strip()
+        name = (first + (" " + last if last else "")).strip() or "Игрок"
         chat_id = int(request.headers.get("X-Shift-Chat") or request.rel_url.query.get("chat_id") or user_id)
         level = int(request.headers.get("X-Shift-Level") or request.rel_url.query.get("level") or 1)
-        return user_id, chat_id, {"name": name, "level": level}
+        photo_url = (
+            u.get("photo_url")
+            or request.headers.get("X-Shift-Photo")
+            or request.rel_url.query.get("photo_url")
+            or ""
+        )
+        return user_id, chat_id, {
+            "name": name,
+            "level": level,
+            "photo_url": photo_url,
+            "avatar": (first[:1] + (last[:1] if last else "")).upper() or name[:1].upper(),
+            "username": u.get("username") or "",
+        }
 
     if GAME_API_DEV:
         user_id = int(request.headers.get("X-Shift-User") or request.rel_url.query.get("user_id") or 0)
         chat_id = int(request.headers.get("X-Shift-Chat") or request.rel_url.query.get("chat_id") or user_id)
         name = request.headers.get("X-Shift-Name") or request.rel_url.query.get("name") or "Dev Player"
         level = int(request.headers.get("X-Shift-Level") or request.rel_url.query.get("level") or 1)
+        photo_url = request.headers.get("X-Shift-Photo") or request.rel_url.query.get("photo_url") or ""
         if user_id:
-            return user_id, chat_id, {"name": name, "level": level}
+            return user_id, chat_id, {"name": name, "level": level, "photo_url": photo_url, "avatar": name[:1].upper()}
 
     raise web.HTTPUnauthorized(text=json.dumps({"ok": False, "error": "Unauthorized"}), content_type="application/json")
 
@@ -88,7 +103,9 @@ async def me(request: web.Request) -> web.Response:
             "name": meta["name"],
             "level": int(user.get("level") or meta["level"]),
             "coins": int(user.get("coins") or 0),
-            "avatar": meta["name"][:1].upper(),
+            "avatar": meta.get("avatar") or meta["name"][:1].upper(),
+            "photo_url": meta.get("photo_url") or "",
+            "username": meta.get("username") or "",
         },
         "stats": stats,
         "fleet": [{"id": sid, "name": name, "length": length} for sid, name, length in logic.FLEET],

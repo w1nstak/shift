@@ -27,6 +27,7 @@ class PlayerState:
     name: str
     level: int = 1
     avatar: str = "?"
+    photo_url: str = ""
     is_bot: bool = False
     ready: bool = False
     ships: list[logic.Ship] = field(default_factory=list)
@@ -92,12 +93,15 @@ class SeaBattleEngine:
 
     def _make_player(self, user_id: int, chat_id: int, meta: dict) -> PlayerState:
         name = (meta.get("name") or "Игрок").strip() or "Игрок"
+        parts = name.split()
+        initials = (parts[0][:1] + (parts[1][:1] if len(parts) > 1 else "")).upper() or "?"
         return PlayerState(
             user_id=user_id,
             chat_id=chat_id,
-            name=name[:32],
+            name=name[:48],
             level=int(meta.get("level") or 1),
-            avatar=(name[:1] or "?").upper(),
+            avatar=(meta.get("avatar") or initials)[:2],
+            photo_url=(meta.get("photo_url") or "")[:512],
             is_bot=bool(meta.get("is_bot")),
         )
 
@@ -475,6 +479,7 @@ class SeaBattleEngine:
                 "name": p.name,
                 "level": p.level,
                 "avatar": p.avatar,
+                "photo_url": p.photo_url,
                 "ready": p.ready,
                 "is_bot": p.is_bot,
                 "connected": p.connected,
@@ -508,6 +513,7 @@ class SeaBattleEngine:
                     "name": opp.name,
                     "level": opp.level,
                     "avatar": opp.avatar,
+                    "photo_url": opp.photo_url,
                     "ready": opp.ready,
                     "is_bot": opp.is_bot,
                     "board": logic.public_enemy_view(opp.ships, me.shots_made) if opp.ships else {"cells": {}, "ships_left": 5, "sunk": []},

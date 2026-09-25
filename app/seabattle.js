@@ -21,6 +21,8 @@
     userId: 0,
     chatId: 0,
     name: 'Игрок',
+    photoUrl: '',
+    avatarLetter: 'И',
     level: 1,
     api: '',
     ws: null,
@@ -65,6 +67,7 @@
     h['X-Shift-Chat'] = String(state.chatId || state.userId || 0);
     h['X-Shift-Name'] = state.name || 'Игрок';
     h['X-Shift-Level'] = String(state.level || 1);
+    if (state.photoUrl) h['X-Shift-Photo'] = state.photoUrl;
     return h;
   }
 
@@ -91,6 +94,7 @@
       q.set('chat_id', String(state.chatId || state.userId || 0));
       q.set('name', state.name || 'Игрок');
       q.set('level', String(state.level || 1));
+      if (state.photoUrl) q.set('photo_url', state.photoUrl);
       if (tg && tg.initData) q.set('initData', tg.initData);
       u.search = q.toString();
       if (state.ws) {
@@ -564,17 +568,27 @@
     );
   }
 
+  function playerAv(p, cls) {
+    var letter = esc((p && (p.avatar || (p.name || '?')[0])) || '?');
+    var photo = p && (p.photo_url || p.photoUrl);
+    var c = cls || 'sb-av';
+    if (photo) {
+      return '<div class="' + c + ' ' + c + '--photo"><img src="' + esc(photo) + '" alt="" referrerpolicy="no-referrer" /><span>' + letter + '</span></div>';
+    }
+    return '<div class="' + c + '">' + letter + '</div>';
+  }
+
   function renderVs() {
     var players = (state.room && state.room.players) || [];
-    var a = players[0] || { name: state.name, level: state.level, avatar: (state.name || '?')[0] };
+    var a = players[0] || { name: state.name, level: state.level, avatar: state.avatarLetter, photo_url: state.photoUrl };
     var b = players[1] || { name: '…', level: '—', avatar: '?' };
     return (
       '<div class="sb-screen sb-vs">' +
         '<p class="sb-found">Opponent found!</p>' +
         '<div class="sb-vs-row">' +
-          '<div class="sb-fighter"><div class="sb-av">' + esc(a.avatar || a.name[0]) + '</div><strong>' + esc(a.name) + '</strong><span>Lvl ' + esc(a.level) + '</span></div>' +
+          '<div class="sb-fighter">' + playerAv(a) + '<strong>' + esc(a.name) + '</strong><span>Lvl ' + esc(a.level) + '</span></div>' +
           '<div class="sb-vs-badge">VS</div>' +
-          '<div class="sb-fighter"><div class="sb-av">' + esc(b.avatar || (b.name || '?')[0]) + '</div><strong>' + esc(b.name) + '</strong><span>Lvl ' + esc(b.level) + '</span></div>' +
+          '<div class="sb-fighter">' + playerAv(b) + '<strong>' + esc(b.name) + '</strong><span>Lvl ' + esc(b.level) + '</span></div>' +
         '</div>' +
         (state.countdown != null ? '<div class="sb-count">' + esc(state.countdown) + '</div>' : '') +
       '</div>'
@@ -790,7 +804,7 @@
         '<div class="sb-top"><button type="button" class="sb-back" data-sb-go="lobby">' + backSvg() + '</button>' +
           '<div class="sb-brand"><strong>Fleet Profile</strong></div>' + coinPill() + '</div>' +
         '<div class="sb-profile glass">' +
-          '<div class="sb-av xl">' + esc((state.name || '?')[0]) + '</div>' +
+          playerAv({ name: state.name, avatar: state.avatarLetter, photo_url: state.photoUrl }, 'sb-av xl') +
           '<h2>' + esc(state.name) + '</h2>' +
           '<span>Level ' + state.level + '</span>' +
           '<div class="sb-stats" style="margin-top:14px">' +
@@ -1030,10 +1044,10 @@
       status: 'PLACING',
       turn: state.userId,
       players: [
-        { user_id: state.userId, name: state.name, level: state.level, avatar: (state.name || '?')[0] },
+        { user_id: state.userId, name: state.name, level: state.level, avatar: state.avatarLetter || (state.name || '?')[0], photo_url: state.photoUrl },
         { user_id: -1, name: 'Shift AI', level: state.level, avatar: 'S', is_bot: true },
       ],
-      enemy: { name: 'Shift AI', level: state.level, is_bot: true },
+      enemy: { name: 'Shift AI', level: state.level, is_bot: true, avatar: 'S' },
     };
     state.screen = 'vs';
     render();
@@ -1134,10 +1148,26 @@
     state.userId = opts.userId || state.userId;
     state.chatId = opts.chatId || state.chatId || state.userId;
     state.name = opts.name || state.name;
+    state.photoUrl = opts.photoUrl || state.photoUrl || '';
+    state.avatarLetter = opts.avatar || state.avatarLetter || (state.name || '?')[0];
     state.level = opts.level || state.level;
     state.api = opts.api || state.api || '';
     state.room = null;
     state.local = false;
+
+    // Prefer live Telegram profile each open
+    var tg = hooks.getTg && hooks.getTg();
+    var tu = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+    if (tu) {
+      var nm = [tu.first_name, tu.last_name].filter(Boolean).join(' ').trim();
+      if (nm) state.name = nm;
+      if (tu.photo_url) state.photoUrl = tu.photo_url;
+      if (tu.id) state.userId = tu.id;
+      var parts = (state.name || '').split(/\s+/);
+      state.avatarLetter = parts.length > 1
+        ? (parts[0][0] + parts[1][0]).toUpperCase()
+        : (state.name[0] || 'И').toUpperCase();
+    }
 
     var host = document.getElementById('seabattle-host');
     if (host) {

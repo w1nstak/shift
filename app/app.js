@@ -57,7 +57,7 @@
   /* ========== Store ========== */
   function defaultStore() {
     return {
-      user: { name: 'Игрок', shiftId: '@player', avatar: 'И', coins: 0, userId: 0, chatId: 0, level: 1 },
+      user: { name: 'Игрок', shiftId: '@player', avatar: 'И', photoUrl: '', coins: 0, userId: 0, chatId: 0, level: 1 },
       settings: { haptics: true, sounds: true },
       stats: { gamesPlayed: 0, bestMath: 0, bestTap: 0, streak: 1, messages: 0 },
       achievements: {},
@@ -196,6 +196,48 @@
   function esc(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function displayName(first, last) {
+    return [first, last].filter(Boolean).join(' ').trim() || 'Игрок';
+  }
+
+  function initialsFrom(name) {
+    var parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return 'И';
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+  }
+
+  /** Telegram-synced avatar: photo or initials */
+  function avatarHtml(user, cls) {
+    var u = user || store.user;
+    var letter = esc(u.avatar || initialsFrom(u.name) || '?');
+    var clsName = cls || 'avatar';
+    if (u.photoUrl) {
+      return '<span class="' + clsName + ' ' + clsName + '--photo">' +
+        '<img src="' + esc(u.photoUrl) + '" alt="" referrerpolicy="no-referrer" />' +
+        '<span class="' + clsName + '__fallback" aria-hidden="true">' + letter + '</span></span>';
+    }
+    return '<span class="' + clsName + '">' + letter + '</span>';
+  }
+
+  function syncFromTelegram() {
+    var tgApp = getTg();
+    var u = tgApp && tgApp.initDataUnsafe && tgApp.initDataUnsafe.user;
+    if (!u) return false;
+    var name = displayName(u.first_name, u.last_name);
+    store.user.name = name;
+    store.user.avatar = initialsFrom(name);
+    store.user.photoUrl = u.photo_url || '';
+    if (u.username) store.user.shiftId = '@' + u.username;
+    else store.user.shiftId = '@' + name.toLowerCase().replace(/\s+/g, '').slice(0, 24);
+    if (u.id) {
+      store.user.userId = u.id;
+      if (!store.user.chatId) store.user.chatId = u.id;
+    }
+    saveStore();
+    return true;
   }
 
   function toast(text) {
@@ -456,7 +498,7 @@
       '<section class="screen is-active">' +
         '<h1 class="large-title">Мой Shift</h1>' +
         '<div class="profile-card glass" style="margin-top:12px">' +
-          '<div class="avatar-xl">' + esc(store.user.avatar) + '</div>' +
+          avatarHtml(store.user, 'avatar-xl') +
           '<h2>' + esc(store.user.name) + '</h2>' +
           '<span class="id">' + esc(store.user.shiftId) + '</span>' +
           '<div class="p-stats">' +
@@ -648,6 +690,8 @@
       userId: store.user.userId || Number(params.get('user_id') || 0),
       chatId: store.user.chatId || Number(params.get('chat_id') || params.get('user_id') || 0),
       name: store.user.name,
+      photoUrl: store.user.photoUrl || '',
+      avatar: store.user.avatar || '',
       level: store.user.level || Number(params.get('level') || 1),
       api: store.api || params.get('api') || '',
       hooks: {
@@ -1040,13 +1084,19 @@
 
   function hydrateUser() {
     var params = new URLSearchParams(window.location.search);
+
+    // 1) URL params from bot (fallback until Telegram initData)
     var name = params.get('name');
     if (name) {
       store.user.name = name;
-      store.user.avatar = name.trim().charAt(0).toUpperCase() || 'И';
+      store.user.avatar = initialsFrom(name);
       store.user.shiftId = '@' + name.trim().toLowerCase().replace(/\s+/g, '');
-      saveStore();
     }
+    var photo = params.get('photo');
+    if (photo) store.user.photoUrl = photo;
+    var username = params.get('username');
+    if (username) store.user.shiftId = '@' + username.replace(/^@/, '');
+
     var balance = params.get('balance');
     if (balance != null && balance !== '') {
       var coins = parseInt(balance, 10);
@@ -1063,21 +1113,12 @@
     var streak = params.get('streak');
     if (streak != null && streak !== '') {
       var n = parseInt(streak, 10);
-      if (!isNaN(n) && n >= 0) {
-        store.stats.streak = n;
-        saveStore();
-      }
+      if (!isNaN(n) && n >= 0) store.stats.streak = n;
     }
-    if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
-      var u = tg.initDataUnsafe.user;
-      if (u.first_name) {
-        store.user.name = u.first_name;
-        store.user.avatar = u.first_name.charAt(0).toUpperCase();
-        if (u.username) store.user.shiftId = '@' + u.username;
-        if (u.id) store.user.userId = u.id;
-        saveStore();
-      }
-    }
+
+    // 2) Telegram WebApp — source of truth for nick + avatar
+    syncFromTelegram();
+    saveStore();
   }
 
   function hydrateClanFromUrl() {

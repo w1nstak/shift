@@ -343,8 +343,20 @@ body.sb-active .shift-nav { display: none !important; }
   font-weight: 700;
   background: linear-gradient(145deg, #0A84FF, #5E5CE6);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 10px 24px rgba(10, 132, 255, 0.3);
+  overflow: hidden;
+  position: relative;
 }
 .sb-av.xl { width: 88px; height: 88px; border-radius: 28px; font-size: 34px; }
+.sb-av--photo { background: rgba(255, 255, 255, 0.08); }
+.sb-av img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+}
+.sb-av span { position: relative; z-index: 0; }
 .sb-vs-badge {
   width: 48px;
   height: 48px;

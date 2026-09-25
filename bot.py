@@ -127,6 +127,13 @@ async def build_mini_app_url(message: Message, uid: int, cid: int) -> str:
         "shield": int(inv.get("щит", 0) or 0),
         "inventory": json.dumps(inv, ensure_ascii=False),
     }
+    if message.from_user:
+        fu = message.from_user
+        full = " ".join(x for x in [fu.first_name, fu.last_name] if x).strip()
+        if full:
+            params["name"] = full
+        if fu.username:
+            params["username"] = fu.username
     if GAME_API_URL:
         params["api"] = GAME_API_URL
     clan = await db.get_user_clan(uid, cid)
