@@ -30,7 +30,7 @@ SHOP_ITEMS = {
 
 SPECIAL_ITEMS = {
     "брелок_репе": {
-        "name": "🔑 Брелок РЕРЕ",
+        "name": "Брелок",
         "desc": "+10% к прибыли",
     },
 }
@@ -692,7 +692,7 @@ async def show_game_profile(user_id: int, chat_id: int, name: str) -> str:
     badge_line = " ".join(badges)
     founder_note = ""
     if inv.get(FOUNDER_ITEM, 0) > 0:
-        founder_note = f"\n🔑 <i>Брелок РЕРЕ · +{int(FOUNDER_PROFIT_BONUS * 100)}% прибыль</i>"
+        founder_note = f"\n<i>Брелок · +{int(FOUNDER_PROFIT_BONUS * 100)}% прибыль</i>"
     badge_line = f"\n{badge_line}" if badge_line else ""
     return (
         f"🎮 <b>{name}</b>\n"

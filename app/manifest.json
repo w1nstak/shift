@@ -1,11 +1,11 @@
 {
-  "name": "Iris",
-  "short_name": "Iris",
+  "name": "Shift",
+  "short_name": "Shift",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#1769FF",
   "theme_color": "#1769FF",
-  "description": "Iris — AI, чаты, игры и экосистема в Telegram",
+  "description": "Shift — AI, чаты, игры и экосистема в Telegram",
   "icons": [
     {
       "src": "icon.svg",

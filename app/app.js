@@ -1,4 +1,4 @@
-/* Iris Mini App — unified SPA */
+/* Shift Mini App — unified SPA */
 (function () {
   'use strict';
 
@@ -85,23 +85,23 @@
   /* ========== Mock data ========== */
   const USER = {
     name: 'Артём',
-    irisId: '@artem',
+    shiftId: '@artem',
     avatar: 'А',
     stats: { games: 24, chats: 128, achievements: 12 },
   };
 
   const CHATS = [
-    { id: 'iris', name: 'Iris AI', preview: 'Чем могу помочь?', time: 'сейчас', unread: 0, type: 'ai', accent: '#00D6A3', avatar: '✨', color: 'ai' },
+    { id: 'shift-ai', name: 'Shift AI', preview: 'Чем могу помочь?', time: 'сейчас', unread: 0, type: 'ai', accent: '#00D6A3', avatar: '✨', color: 'ai' },
     { id: 'masha', name: 'Маша', preview: 'Ок, давай в 19:00', time: '12:40', unread: 2, type: 'personal', accent: '#FF7AD9', avatar: 'М', color: 'pink' },
-    { id: 'dev', name: 'Iris Dev', preview: 'Новый билд готов', time: '11:02', unread: 0, type: 'group', accent: '#1769FF', avatar: 'D', color: 'violet' },
+    { id: 'dev', name: 'Shift Dev', preview: 'Новый билд готов', time: '11:02', unread: 0, type: 'group', accent: '#1769FF', avatar: 'D', color: 'violet' },
     { id: 'leo', name: 'Leo', preview: 'Залетай в Math Battle', time: 'вчера', unread: 1, type: 'personal', accent: '#00C2FF', avatar: 'L', color: 'green' },
-    { id: 'clan', name: 'Команда Iris', preview: 'Daily Challenge открыт 🏆', time: 'вчера', unread: 5, type: 'group', accent: '#7B8CFF', avatar: 'I', color: 'violet' },
+    { id: 'clan', name: 'Команда Shift', preview: 'Daily Challenge открыт 🏆', time: 'вчера', unread: 5, type: 'group', accent: '#7B8CFF', avatar: 'I', color: 'violet' },
   ];
 
   const GAMES = [
     { id: 'math', name: 'Math Battle', desc: 'Считай быстрее всех', emoji: '🧠', difficulty: 'Medium', score: 960, featured: true },
     { id: 'tap', name: 'Quick Tap', desc: 'Реакция на скорость', emoji: '🎯', difficulty: 'Easy', score: 420 },
-    { id: 'run', name: 'Run Iris', desc: 'Беги и собирай бонусы', emoji: '🏃', difficulty: 'Medium', score: 780 },
+    { id: 'run', name: 'Run Shift', desc: 'Беги и собирай бонусы', emoji: '🏃', difficulty: 'Medium', score: 780 },
     { id: 'puzzle', name: 'Puzzle', desc: 'Собери фигуру за минуту', emoji: '🧩', difficulty: 'Hard', score: 310 },
     { id: 'space', name: 'Space Rush', desc: 'Космический раннер', emoji: '🚀', difficulty: 'Hard', score: 1120 },
     { id: 'daily', name: 'Daily Challenge', desc: 'Ежедневный челлендж', emoji: '🏆', difficulty: 'Daily', score: 0 },
@@ -112,12 +112,12 @@
     { id: 'search', title: 'Найти', sub: 'Ответы и факты', icon: '🔎', tone: 'search' },
     { id: 'write', title: 'Написать', sub: 'Тексты и посты', icon: '📝', tone: 'write' },
     { id: 'plan', title: 'Спланировать', sub: 'День и задачи', icon: '🎯', tone: 'plan' },
-    { id: 'image', title: 'Изображение', sub: 'Визуальные идеи', icon: '🎨', tone: 'image' },
+    { id: 'image', title: 'Создать изображение', sub: 'Визуальные идеи', icon: '🎨', tone: 'image' },
     { id: 'task', title: 'Выполнить', sub: 'Быстрые шаги', icon: '⚡', tone: 'task' },
   ];
 
   const QUICK = [
-    { id: 'ai', label: 'Iris AI', icon: '✨', go: 'ai' },
+    { id: 'ai', label: 'Shift AI', icon: '✨', go: 'ai' },
     { id: 'chats', label: 'Чаты', icon: '💬', go: 'chats' },
     { id: 'games', label: 'Игры', icon: '🎮', go: 'games' },
     { id: 'create', label: 'Создать', icon: '⚡', go: 'ai' },
@@ -137,14 +137,14 @@
   const refs = {
     host: document.getElementById('screen-host'),
     nav: document.getElementById('bottom-nav'),
-    root: document.getElementById('iris-root'),
+    root: document.getElementById('shift-root'),
     toast: document.getElementById('toast-host'),
   };
 
   const NAV = [
     { id: 'home', label: 'Главная', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 11 12 4l8 7v8a1.5 1.5 0 0 1-1.5 1.5H14v-6H10v6H5.5A1.5 1.5 0 0 1 4 19v-8Z"/></svg>' },
     { id: 'chats', label: 'Чаты', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v6A2.5 2.5 0 0 1 16.5 15H10l-4 3.5V6.5Z"/></svg>' },
-    { id: 'ai', label: 'Iris', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M3 12c2.4-5 5.8-7.5 9-7.5S18.6 7 21 12c-2.4 5-5.8 7.5-9 7.5S5.4 17 3 12Z"/></svg>' },
+    { id: 'ai', label: 'Shift', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M3 12c2.4-5 5.8-7.5 9-7.5S18.6 7 21 12c-2.4 5-5.8 7.5-9 7.5S5.4 17 3 12Z"/></svg>' },
     { id: 'games', label: 'Игры', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5.5" y="7" width="13" height="10" rx="3"/><path d="M9 12h6M12 9.5v5M4.5 10.5 3 12l1.5 1.5M19.5 10.5 21 12l-1.5 1.5"/></svg>' },
     { id: 'profile', label: 'Профиль', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.2"/><path d="M5 19c1.5-2.8 4-4.2 7-4.2s5.5 1.4 7 4.2"/></svg>' },
   ];
@@ -179,8 +179,8 @@
     const hide = state.overlay === 'chat' || state.overlay === 'play';
     refs.nav.classList.toggle('is-hidden', hide);
     refs.nav.innerHTML = NAV.map(function (item) {
-      return '<button type="button" class="iris-nav__item' + (state.tab === item.id && !state.overlay ? ' is-active' : '') + '" data-tab="' + item.id + '">' +
-        '<span class="iris-nav__icon">' + item.icon + '</span><small>' + esc(item.label) + '</small></button>';
+      return '<button type="button" class="shift-nav__item' + (state.tab === item.id && !state.overlay ? ' is-active' : '') + '" data-tab="' + item.id + '">' +
+        '<span class="shift-nav__icon">' + item.icon + '</span><small>' + esc(item.label) + '</small></button>';
     }).join('');
     refs.nav.querySelectorAll('[data-tab]').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -200,9 +200,9 @@
       '<section class="screen is-active" data-name="home">' +
         '<div class="home-hero">' +
           '<div class="home-hero__copy reveal">' +
-            '<p class="eyebrow">Iris Ecosystem</p>' +
-            '<h1 class="h1">Iris — всё нужное в одном месте</h1>' +
-            '<p class="lead">Общайтесь, играйте, создавайте и решайте задачи прямо внутри приложения.</p>' +
+            '<p class="eyebrow">Shift Ecosystem</p>' +
+            '<h1 class="h1">Shift — всё нужное в одном месте</h1>' +
+            '<p class="lead">Общайтесь, играйте, создавайте и решайте задачи вместе с Shift.</p>' +
           '</div>' +
           '<div class="home-hero__stage reveal reveal-d1">' +
             '<div class="float-card float-card--a"><small>Сейчас онлайн</small><strong class="accent">1.2k</strong></div>' +
@@ -210,7 +210,7 @@
             '<div class="phone-mock" aria-hidden="true">' +
               '<div class="phone-mock__frame"><div class="phone-mock__screen">' +
                 '<div class="phone-mock__notch"></div>' +
-                '<div class="phone-mini-row"><div class="phone-mini-avatar">✨</div><div><strong>Iris AI</strong><span>Чем помочь?</span></div></div>' +
+                '<div class="phone-mini-row"><div class="phone-mini-avatar">✨</div><div><strong>Shift AI</strong><span>Чем помочь?</span></div></div>' +
                 '<div class="phone-mini-row"><div class="phone-mini-avatar">🧠</div><div><strong>Math Battle</strong><span>Рекорд 960</span></div></div>' +
                 '<div class="phone-mini-row"><div class="phone-mini-avatar">💬</div><div><strong>Чаты</strong><span>3 новых</span></div></div>' +
               '</div></div>' +
@@ -251,7 +251,7 @@
         '<div class="section-gap">' +
           '<div class="section-head"><h2>Рекомендации</h2></div>' +
           '<div class="h-scroll">' +
-            '<button type="button" class="card reco-card card--press" data-go="ai"><span class="tag">AI</span><strong class="h3">Спроси Iris</strong><p>Идеи, планы и ответы за секунды</p></button>' +
+            '<button type="button" class="card reco-card card--press" data-go="ai"><span class="tag">AI</span><strong class="h3">Спроси Shift</strong><p>Идеи, планы и ответы за секунды</p></button>' +
             '<button type="button" class="card reco-card card--press" data-play="daily"><span class="tag">Игра</span><strong class="h3">Daily Challenge</strong><p>Сегодня: Math Battle</p></button>' +
             '<button type="button" class="card reco-card card--press" data-go="chats"><span class="tag">Чаты</span><strong class="h3">Новые сообщения</strong><p>3 непрочитанных диалога</p></button>' +
           '</div>' +
@@ -276,13 +276,13 @@
       { id: 'all', label: 'Все' },
       { id: 'personal', label: 'Личные' },
       { id: 'group', label: 'Группы' },
-      { id: 'ai', label: 'Iris AI' },
+      { id: 'ai', label: 'Shift AI' },
     ];
 
     return (
       '<section class="screen is-active" data-name="chats">' +
         '<p class="eyebrow reveal">Messenger</p>' +
-        '<h1 class="h2 reveal">Общайтесь с Iris и друзьями</h1>' +
+        '<h1 class="h2 reveal">Общайтесь с Shift и друзьями</h1>' +
         '<div class="search-bar reveal reveal-d1">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg>' +
           '<input id="chat-search" type="search" placeholder="Поиск чатов" value="' + esc(state.chatSearch) + '" />' +
@@ -292,11 +292,11 @@
             return '<button type="button" class="chip' + (filter === f.id ? ' is-active' : '') + '" data-filter="' + f.id + '">' + esc(f.label) + '</button>';
           }).join('') +
         '</div>' +
-        '<button type="button" class="ai-promo reveal reveal-d2" data-open-chat="iris">' +
+        '<button type="button" class="ai-promo reveal reveal-d2" data-open-chat="shift-ai">' +
           '<span class="ai-promo__glow"></span>' +
-          '<strong>✨ Iris AI</strong>' +
+          '<strong>✨ Shift AI</strong>' +
           '<p>Чем могу помочь?</p>' +
-          '<span class="btn btn--white btn--sm">Написать Iris →</span>' +
+          '<span class="btn btn--white btn--sm">Написать Shift →</span>' +
         '</button>' +
         (filter === 'ai' ? '' : (
           '<div class="chat-list reveal reveal-d3">' +
@@ -317,14 +317,14 @@
 
   function ensureMessages(chatId) {
     if (state.messages[chatId]) return state.messages[chatId];
-    if (chatId === 'iris') {
+    if (chatId === 'shift-ai') {
       state.messages[chatId] = [
-        { from: 'iris', text: 'Привет! Я Iris 👋\nЧто сделаем сегодня?' },
+        { from: 'shift', text: 'Привет! Я Shift 👋\nЧто сделаем сегодня?' },
       ];
     } else {
       const chat = CHATS.find(function (c) { return c.id === chatId; });
       state.messages[chatId] = [
-        { from: 'iris', text: chat ? chat.preview : 'Привет!' },
+        { from: 'shift', text: chat ? chat.preview : 'Привет!' },
         { from: 'user', text: 'Привет 👋' },
       ];
     }
@@ -333,7 +333,7 @@
 
   function renderChatThread() {
     const chat = CHATS.find(function (c) { return c.id === state.chatId; }) || { name: 'Чат', avatar: '?', color: '' };
-    const isAi = state.chatId === 'iris';
+    const isAi = state.chatId === 'shift-ai';
     const msgs = ensureMessages(state.chatId);
 
     return (
@@ -349,7 +349,7 @@
               if (m.from === 'user') {
                 return '<div class="msg msg--user"><div class="msg__bubble">' + esc(m.text).replace(/\n/g, '<br/>') + '</div></div>';
               }
-              return '<div class="msg msg--iris"><div class="' + avatarClass('ai') + ' avatar--sm">✨</div><div class="msg__bubble">' + esc(m.text).replace(/\n/g, '<br/>') + '</div></div>';
+              return '<div class="msg msg--shift"><div class="' + avatarClass('ai') + ' avatar--sm">✨</div><div class="msg__bubble">' + esc(m.text).replace(/\n/g, '<br/>') + '</div></div>';
             }).join('') +
           '</div>' +
           (isAi ? (
@@ -377,8 +377,8 @@
     return (
       '<section class="screen is-active" data-name="ai">' +
         '<div class="ai-hello reveal">' +
-          '<p class="eyebrow">Iris AI</p>' +
-          '<h1 class="h1">Привет! Я Iris 👋</h1>' +
+          '<p class="eyebrow">Shift AI</p>' +
+          '<h1 class="h1">Привет! Я Shift 👋</h1>' +
           '<p class="lead">Что сделаем сегодня?</p>' +
         '</div>' +
         '<div class="ai-grid">' +
@@ -388,7 +388,7 @@
           }).join('') +
         '</div>' +
         '<div class="section-gap reveal">' +
-          '<button type="button" class="btn btn--white btn--wide" data-open-chat="iris">Открыть чат с Iris</button>' +
+          '<button type="button" class="btn btn--white btn--wide" data-open-chat="shift-ai">Открыть чат с Shift</button>' +
         '</div>' +
       '</section>'
     );
@@ -398,8 +398,8 @@
     const featured = GAMES.find(function (g) { return g.featured; }) || GAMES[0];
     return (
       '<section class="screen is-active" data-name="games">' +
-        '<p class="eyebrow reveal">Play</p>' +
-        '<h1 class="h2 reveal">Играйте в Iris</h1>' +
+        '<p class="eyebrow reveal">Shift Games</p>' +
+        '<h1 class="h2 reveal">Играйте в Shift</h1>' +
         '<p class="lead reveal reveal-d1">Небольшие игры, чтобы развлечься и получить награды.</p>' +
         '<button type="button" class="hero-game reveal reveal-d2" data-play="' + featured.id + '">' +
           '<span class="hero-game__badge">🏆 DAILY CHALLENGE</span>' +
@@ -431,11 +431,11 @@
     return (
       '<section class="screen is-active" data-name="profile">' +
         '<p class="eyebrow reveal">You</p>' +
-        '<h1 class="h2 reveal">Профиль</h1>' +
+        '<h1 class="h2 reveal">Мой Shift</h1>' +
         '<div class="profile-hero-card reveal reveal-d1">' +
           '<div class="avatar avatar--lg">' + esc(USER.avatar) + '</div>' +
           '<h2>' + esc(USER.name) + '</h2>' +
-          '<span class="iris-id">Iris ID ' + esc(USER.irisId) + '</span>' +
+          '<span class="shift-id">Shift ID ' + esc(USER.shiftId) + '</span>' +
           '<div class="profile-stats">' +
             '<div><strong>' + USER.stats.games + '</strong><small>Игры</small></div>' +
             '<div><strong>' + USER.stats.chats + '</strong><small>Чаты</small></div>' +
@@ -610,10 +610,10 @@
           return;
         }
         if (state.overlay === 'chat') {
-          const wasIris = state.chatId === 'iris';
+          const wasShiftAI = state.chatId === 'shift-ai';
           state.overlay = null;
           state.chatId = null;
-          state.tab = wasIris ? 'ai' : 'chats';
+          state.tab = wasShiftAI ? 'ai' : 'chats';
           route();
         }
       });
@@ -624,7 +624,7 @@
         haptic('light');
         state.chatFilter = el.dataset.filter;
         if (state.chatFilter === 'ai') {
-          state.chatId = 'iris';
+          state.chatId = 'shift-ai';
           state.overlay = 'chat';
         }
         route();
@@ -642,13 +642,13 @@
     refs.host.querySelectorAll('[data-ai-start]').forEach(function (el) {
       el.addEventListener('click', function () {
         haptic('medium');
-        state.chatId = 'iris';
+        state.chatId = 'shift-ai';
         state.overlay = 'chat';
         const action = AI_ACTIONS.find(function (a) { return a.id === el.dataset.aiStart; });
-        ensureMessages('iris');
+        ensureMessages('shift-ai');
         if (action) {
-          state.messages.iris.push({ from: 'user', text: action.title });
-          state.messages.iris.push({ from: 'iris', text: 'Отлично! Давай разберём «' + action.title + '». Напиши детали — я помогу.' });
+          state.messages["shift-ai"].push({ from: 'user', text: action.title });
+          state.messages["shift-ai"].push({ from: 'shift', text: 'Отлично! Давай разберём «' + action.title + '». Напиши детали — я помогу.' });
         }
         route();
       });
@@ -734,10 +734,10 @@
     haptic('light');
     const list = ensureMessages(state.chatId);
     list.push({ from: 'user', text: text });
-    if (state.chatId === 'iris') {
-      list.push({ from: 'iris', text: irisReply(text) });
+    if (state.chatId === 'shift-ai') {
+      list.push({ from: 'shift', text: shiftReply(text) });
     } else {
-      list.push({ from: 'iris', text: 'Принято 👍' });
+      list.push({ from: 'shift', text: 'Принято 👍' });
     }
     route();
     requestAnimationFrame(function () {
@@ -746,12 +746,12 @@
     });
   }
 
-  function irisReply(text) {
+  function shiftReply(text) {
     const t = text.toLowerCase();
-    if (t.indexOf('игр') !== -1) return 'Могу открыть Games Hub. Попробуй Math Battle — сегодня Daily Challenge 🏆';
+    if (t.indexOf('игр') !== -1) return 'Могу открыть Shift Games. Попробуй Math Battle — сегодня Daily Challenge 🏆';
     if (t.indexOf('план') !== -1) return 'Давай составим план: 1) цель 2) шаги 3) дедлайн. Напиши цель.';
     if (t.indexOf('картин') !== -1 || t.indexOf('изображ') !== -1) return 'Опиши сцену — подскажу идею промпта для изображения.';
-    return 'Поняла! Расскажи чуть подробнее — помогу быстрее.';
+    return 'Понятно! Расскажи чуть подробнее — помогу быстрее.';
   }
 
   /* ========== Route ========== */
@@ -784,9 +784,9 @@
     } else if (state.tab === 'ai' && !state.overlay) {
       setMainButton({
         visible: true,
-        text: 'Спросить Iris',
+        text: 'Спросить Shift',
         onClick: function () {
-          state.chatId = 'iris';
+          state.chatId = 'shift-ai';
           state.overlay = 'chat';
           route();
         },

@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import random
 import re
@@ -13,7 +14,9 @@ from aiogram.types import (
     ChatMemberUpdated,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
+    MenuButtonWebApp,
     Message,
+    WebAppInfo,
 )
 
 import db
@@ -88,15 +91,6 @@ PLAIN_COMMANDS = frozenset({
 DIVIDER = games.DIVIDER
 
 
-def founder_onboard_text(name: str, remaining: int) -> str:
-    return (
-        f"🔑 <b>БРЕЛОК РЕРЕ</b>\n"
-        f"{DIVIDER}\n\n"
-        f"<i>+{int(FOUNDER_PROFIT_BONUS * 100)}% к прибыли с бизнеса</i>\n\n"
-        f"Осталось: <b>{remaining}</b>"
-    )
-
-
 def strip_prefix(text: str) -> str:
     for p in PREFIXES:
         if text.startswith(p):
@@ -131,6 +125,7 @@ async def build_mini_app_url(message: Message, uid: int, cid: int) -> str:
         "messages": int(user.get("messages") or 0),
         "vip": int(inv.get("vip", 0) > 0),
         "shield": int(inv.get("щит", 0) or 0),
+        "inventory": json.dumps(inv, ensure_ascii=False),
     }
     base = sanitize_mini_app_url(MINI_APP_URL)
     return f"{base}?{urlencode(params)}"
@@ -172,12 +167,8 @@ def extract_command(text: str) -> str | None:
 
 
 async def onboard_user(message: Message, chat_id: int, user_id: int) -> str | None:
-    """Регистрация пользователя и выдача брелка первым 50."""
-    _, got_founder = await db.register_global_user(user_id)
-    if got_founder and await db.sync_founder_item(user_id, chat_id):
-        remaining = await db.founders_remaining()
-        name = message.from_user.first_name or "друг"
-        return founder_onboard_text(name, remaining)
+    """Регистрация пользователя без автоматической выдачи founder item."""
+    await db.register_global_user(user_id)
     return None
 
 
@@ -383,13 +374,9 @@ async def transfer_coins(
 
 @router.message(CommandStart())
 async def cmd_start(message: Message):
-    uid = message.from_user.id
-    cid = message.chat.id
-    mini_app_url = await build_mini_app_url(message, uid, cid)
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="📖 Помощь по командам", callback_data="help")],
-            [InlineKeyboardButton(text="📱 Открыть Mini App", url=mini_app_url)],
             [InlineKeyboardButton(text="🎒 Посмотреть инвентарь", callback_data="inv_hint")],
             [
                 InlineKeyboardButton(
@@ -399,16 +386,11 @@ async def cmd_start(message: Message):
             ],
         ]
     )
-    remaining = await db.founders_remaining()
     await message.answer(
         f"💎 <b>Добро пожаловать в {BOT_NAME}!</b>\n"
         f"{DIVIDER}\n\n"
         f"🛡 <b>Модерация</b> · 💰 <b>Экономика</b> · 🎮 <b>Игры</b> · 🏰 <b>Кланы</b>\n\n"
-        f"👉 Добавь меня в группу и напиши <code>активировать</code>\n\n"
-        f"🔑 <b>Брелок РЕРЕ</b> — первые 50 участников\n"
-        f"└─ +{int(FOUNDER_PROFIT_BONUS * 100)}% к прибыли с игр и бизнеса\n"
-        f"📱 Mini App: <a href=\"{MINI_APP_URL}\">открыть</a>\n\n"
-        f"Осталось брелков: <b>{remaining}</b> из 50",
+        f"👉 Добавь меня в группу и напиши <code>активировать</code>",
         parse_mode=ParseMode.HTML,
         reply_markup=kb,
     )
@@ -428,8 +410,7 @@ async def cb_help(callback):
 @router.callback_query(F.data == "inv_hint")
 async def cb_inv_hint(callback):
     await callback.message.answer(
-        f"🎒 <code>инвентарь</code>\n"
-        f"🔑 Брелок РЕРЕ · +{int(FOUNDER_PROFIT_BONUS * 100)}% к прибыли",
+        "🎒 <code>инвентарь</code>",
         parse_mode=ParseMode.HTML,
     )
     await callback.answer()
@@ -451,7 +432,6 @@ async def send_help(message: Message, edit: bool = False):
         f"├─ <code>ежедневный бонус</code> — ежедневка и серия\n"
         f"├─ <code>дать @user 100</code> — перевести монеты\n"
         f"├─ <code>выдать 100</code> — выдать (админ)\n"
-        f"├─ <code>мини app</code> — открыть интерфейс\n"
         f"└─ <code>топ [coins/karma/msg/wins/level]</code> — рейтинг\n\n"
         f"<b>🏰 Кланы и битвы</b>\n"
         f"├─ <code>клан</code> — профиль своего клана\n"
@@ -470,10 +450,7 @@ async def send_help(message: Message, edit: bool = False):
         f"<b>📊 Информация</b>\n"
         f"├─ <code>профиль</code> · <code>кто @user</code> · <code>стата</code>\n"
         f"├─ <code>инфо</code> — о боте и чате\n"
-        f"└─ <code>правила</code> — правила чата\n\n"
-        f"{DIVIDER}\n"
-        f"🔑 <b>Брелок РЕРЕ</b> — первые 50 пользователей\n"
-        f"└─ +{int(FOUNDER_PROFIT_BONUS * 100)}% к прибыли с игр и бизнеса"
+        f"└─ <code>правила</code> — правила чата"
     )
     if edit:
         await message.edit_text(text, parse_mode=ParseMode.HTML)
@@ -507,11 +484,7 @@ async def on_member_update(event: ChatMemberUpdated):
 
 
 async def onboard_user_from_event(event: ChatMemberUpdated, user_id: int) -> str | None:
-    _, got_founder = await db.register_global_user(user_id)
-    if got_founder and await db.sync_founder_item(user_id, event.chat.id):
-        remaining = await db.founders_remaining()
-        name = event.new_chat_member.user.first_name or "друг"
-        return founder_onboard_text(name, remaining)
+    await db.register_global_user(user_id)
     return None
 
 
@@ -809,10 +782,26 @@ async def handle_command(message: Message, cmd: str):
         return
 
     if command in ("мини", "mini", "miniapp", "mini_app"):
+        mini_url = await (
+            build_mini_app_url(message, uid, cid)
+            if not message.chat.type == ChatType.PRIVATE
+            else build_mini_app_url(message, uid, uid)
+        )
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="🚀 Открыть Mini App",
+                        web_app=WebAppInfo(url=mini_url),
+                    )
+                ]
+            ]
+        )
         await message.reply(
             f"📱 <b>Mini App</b>\n{DIVIDER}\n"
-            f"Открыть: <a href=\"{MINI_APP_URL}\">{MINI_APP_URL}</a>",
+            f"Открыть приложение в Telegram:",
             parse_mode=ParseMode.HTML,
+            reply_markup=keyboard,
         )
         return
 
@@ -2329,6 +2318,12 @@ async def main():
         {"command": "help", "description": "📋 Список команд"},
         {"command": "activate", "description": "✅ Активировать в группе"},
     ])
+    await bot.set_chat_menu_button(
+        menu_button=MenuButtonWebApp(
+            text="Mini App",
+            web_app=WebAppInfo(url=sanitize_mini_app_url(MINI_APP_URL)),
+        )
+    )
     await bot.set_my_description(
         f"💎 {BOT_NAME} × РЕРЕ — модерация, экономика, игры.\n"
         f"🔑 Брелок РЕРЕ: +{int(FOUNDER_PROFIT_BONUS * 100)}% к прибыли"

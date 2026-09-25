@@ -1,5 +1,5 @@
 import aiosqlite
-from config import DB_PATH, FOUNDER_ITEM, FOUNDER_LIMIT
+from config import DB_PATH
 
 
 async def init_db() -> None:
@@ -51,12 +51,6 @@ async def init_db() -> None:
                 chat_id INTEGER,
                 keyword TEXT,
                 response TEXT
-            );
-
-            CREATE TABLE IF NOT EXISTS global_users (
-                user_id INTEGER PRIMARY KEY,
-                got_founder_item INTEGER DEFAULT 0,
-                joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
             CREATE TABLE IF NOT EXISTS clans (
