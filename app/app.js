@@ -147,9 +147,8 @@
 
   var NAV = [
     { id: 'home', label: 'Главная', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 11 12 4l8 7v8a1.5 1.5 0 0 1-1.5 1.5H14v-6H10v6H5.5A1.5 1.5 0 0 1 4 19v-8Z"/></svg>' },
-    { id: 'chats', label: 'Чаты', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v6A2.5 2.5 0 0 1 16.5 15H10l-4 3.5V6.5Z"/></svg>' },
-    { id: 'ai', label: 'Shift', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M3 12c2.4-5 5.8-7.5 9-7.5S18.6 7 21 12c-2.4 5-5.8 7.5-9 7.5S5.4 17 3 12Z"/></svg>' },
     { id: 'games', label: 'Игры', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="5.5" y="7" width="13" height="10" rx="3"/><path d="M9 12h6M12 9.5v5"/></svg>' },
+    { id: 'chats', label: 'Чаты', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v6A2.5 2.5 0 0 1 16.5 15H10l-4 3.5V6.5Z"/></svg>' },
     { id: 'profile', label: 'Профиль', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="3.2"/><path d="M5 19c1.5-2.8 4-4.2 7-4.2s5.5 1.4 7 4.2"/></svg>' },
   ];
 
@@ -744,8 +743,15 @@
     refs.host.querySelectorAll('[data-go]').forEach(function (el) {
       el.addEventListener('click', function () {
         haptic('selection');
+        var go = el.dataset.go;
+        if (go === 'ai') {
+          ui.chatId = 'shift-ai';
+          ui.overlay = 'chat';
+          route();
+          return;
+        }
         ui.overlay = null;
-        ui.tab = el.dataset.go;
+        ui.tab = go;
         route();
       });
     });
@@ -926,10 +932,9 @@
       return;
     }
     if (ui.overlay === 'chat') {
-      var wasAi = ui.chatId === 'shift-ai';
       ui.overlay = null;
       ui.chatId = null;
-      ui.tab = wasAi ? 'ai' : 'chats';
+      ui.tab = 'chats';
       route();
     }
   }
@@ -943,7 +948,6 @@
     else if (ui.overlay === 'play') html = renderPlay();
     else if (ui.tab === 'home') html = renderHome();
     else if (ui.tab === 'chats') html = renderChats();
-    else if (ui.tab === 'ai') html = renderAI();
     else if (ui.tab === 'games') html = renderGames();
     else if (ui.tab === 'profile') html = renderProfile();
     else html = renderHome();

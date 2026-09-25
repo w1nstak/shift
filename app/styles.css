@@ -991,7 +991,7 @@ button { cursor: pointer; }
   transform: translateX(-50%);
   width: min(100%, 430px);
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   height: calc(var(--nav-h) + var(--safe-bottom));
   padding: 4px 0 var(--safe-bottom);
   background: rgba(249, 249, 249, 0.92);
