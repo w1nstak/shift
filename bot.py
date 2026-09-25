@@ -298,9 +298,9 @@ async def give_daily_bonus(message: Message, uid: int, cid: int) -> None:
         f"🎁 <b>Ежедневный бонус</b>\n"
         f"{DIVIDER}\n"
         f"├─ Серия: <b>{streak}</b> дней 🔁\n"
-        f"├─ +<b>{bonus}</b> монет{tag}\n"
+        f"├─ +<b>{bonus}</b> S-Coins{tag}\n"
         f"├─ +<b>{10 + streak * 2}</b> XP\n"
-        f"└─ 💰 Твой баланс: <b>{total}</b>{levelup}",
+        f"└─ 🪙 Баланс: <b>{total}</b> S{levelup}",
         parse_mode=ParseMode.HTML,
     )
 
@@ -344,7 +344,7 @@ async def transfer_coins(
         await message.reply(
             f"❌ <b>Перевод не выполнен</b>\n"
             f"{DIVIDER}\n"
-            f"Нельзя переводить монеты самому себе.",
+            f"Нельзя переводить S-Coins самому себе.",
             parse_mode=ParseMode.HTML,
         )
         return
@@ -372,7 +372,7 @@ async def transfer_coins(
     sender = await db.get_user(uid, cid)
     if sender["coins"] < amount:
         await message.reply(
-            f"❌ <b>Недостаточно монет</b>\n"
+            f"❌ <b>Недостаточно S-Coins</b>\n"
             f"{DIVIDER}\n"
             f"├─ У тебя: <b>{sender['coins']}</b> 🪙\n"
             f"└─ Нужно: <b>{amount}</b> 🪙",
@@ -399,21 +399,31 @@ async def transfer_coins(
 async def cmd_start(message: Message):
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="📖 Помощь по командам", callback_data="help")],
-            [InlineKeyboardButton(text="🎒 Посмотреть инвентарь", callback_data="inv_hint")],
             [
                 InlineKeyboardButton(
-                    text="➕ Добавить бота в группу",
+                    text="🚀 Открыть Shift",
+                    web_app=WebAppInfo(url=sanitize_mini_app_url(MINI_APP_URL)),
+                )
+            ],
+            [InlineKeyboardButton(text="📖 Команды", callback_data="help")],
+            [
+                InlineKeyboardButton(
+                    text="➕ Добавить в группу",
                     url=f"https://t.me/{(await message.bot.get_me()).username}?startgroup=true",
                 )
             ],
         ]
     )
     await message.answer(
-        f"💎 <b>Добро пожаловать в {BOT_NAME}!</b>\n"
+        f"⚡ <b>SHIFT</b>\n"
         f"{DIVIDER}\n\n"
-        f"🛡 <b>Модерация</b> · 💰 <b>Экономика</b> · 🎮 <b>Игры</b> · 🏰 <b>Кланы</b>\n\n"
-        f"👉 Добавь меня в группу и напиши <code>активировать</code>",
+        f"Premium iOS-экосистема внутри Telegram.\n\n"
+        f"⚓ <b>Shift Sea Battle</b> — онлайн морской бой 1v1\n"
+        f"🪙 <b>S-Coins</b> — игровая валюта\n"
+        f"🛡 <b>Shift Fleets</b> — флоты и clan chat\n"
+        f"🏆 Рейтинг · миссии · сезоны\n\n"
+        f"👉 Открой приложение или добавь бота в группу:\n"
+        f"<code>активировать</code>",
         parse_mode=ParseMode.HTML,
         reply_markup=kb,
     )
@@ -441,39 +451,40 @@ async def cb_inv_hint(callback):
 
 async def send_help(message: Message, edit: bool = False):
     text = (
-        f"📖 <b>Помощь — {BOT_NAME}</b>\n"
+        f"⚡ <b>SHIFT — команды</b>\n"
         f"{DIVIDER}\n\n"
-        f"<b>🔧 Настройка бота</b>\n"
+        f"<b>🚀 Mini App</b>\n"
+        f"└─ <code>мини</code> — Shift · Sea Battle · Fleets\n\n"
+        f"<b>🔧 Настройка</b>\n"
         f"├─ <code>активировать</code> — включить бота в чате\n"
         f"└─ <code>деактивировать</code> — выключить бота\n\n"
         f"<b>⚖️ Модерация</b>\n"
         f"├─ <code>бан</code> <code>разбан</code> <code>мут</code> <code>размут</code>\n"
         f"├─ <code>кик</code> <code>варн</code> <code>снять варны</code>\n"
         f"└─ <code>удалить</code> — стереть сообщение (ответом)\n\n"
-        f"<b>💰 Экономика</b>\n"
-        f"├─ <code>баланс</code> — твои монеты и серия бонуса\n"
-        f"├─ <code>ежедневный бонус</code> — ежедневка и серия\n"
-        f"├─ <code>дать @user 100</code> — перевести монеты\n"
+        f"<b>🪙 S-Coins</b>\n"
+        f"├─ <code>баланс</code> — S-Coins и серия бонуса\n"
+        f"├─ <code>ежедневный бонус</code> — daily reward\n"
+        f"├─ <code>дать @user 100</code> — перевод S-Coins\n"
         f"├─ <code>выдать 100</code> — выдать (админ)\n"
         f"└─ <code>топ [coins/karma/msg/wins/level]</code> — рейтинг\n\n"
-        f"<b>🏰 Кланы и битвы</b>\n"
-        f"├─ <code>клан</code> — профиль своего клана\n"
-        f"├─ <code>клан создать Название ТЕГ</code> — создать (500🪙)\n"
+        f"<b>🛡 Shift Fleets</b>\n"
+        f"├─ <code>клан</code> — профиль флота\n"
+        f"├─ <code>клан создать Название ТЕГ</code> — создать (500 S)\n"
         f"├─ <code>клан топ</code> · <code>клан участники</code>\n"
         f"├─ <code>клан пригласить @user</code> · <code>клан принять</code>\n"
-        f"└─ <code>клан битва ТЕГ 500</code> · <code>клан удар 70</code> — PvP\n\n"
-        f"<b>❤️ RP-действия</b> (ответом на сообщение)\n"
+        f"└─ <code>клан битва ТЕГ 500</code> · <code>клан удар 70</code>\n\n"
+        f"<b>❤️ RP</b> (ответом на сообщение)\n"
         f"├─ <code>обнять</code> <code>поцеловать</code> <code>ударить</code>\n"
-        f"├─ <code>погладить</code> <code>кусь</code> <code>шлёп</code> <code>пнуть</code>\n"
-        f"└─ <code>подарить</code> <code>кофе</code>\n\n"
-        f"<b>🎮 Игры и магазин</b>\n"
-        f"├─ <code>игры</code> — весь список игр\n"
+        f"└─ <code>погладить</code> <code>кусь</code> <code>кофе</code> …\n\n"
+        f"<b>🎮 Игры в чате</b>\n"
+        f"├─ <code>игры</code> — список мини-игр\n"
         f"├─ <code>магазин</code> · <code>купить предмет</code>\n"
-        f"└─ <code>инвентарь</code> — твои вещи\n\n"
-        f"<b>📊 Информация</b>\n"
+        f"└─ <code>инвентарь</code>\n\n"
+        f"<b>📊 Профиль</b>\n"
         f"├─ <code>профиль</code> · <code>кто @user</code> · <code>стата</code>\n"
-        f"├─ <code>инфо</code> — о боте и чате\n"
-        f"└─ <code>правила</code> — правила чата"
+        f"├─ <code>инфо</code> — о Shift\n"
+        f"└─ <code>правила</code>"
     )
     if edit:
         await message.edit_text(text, parse_mode=ParseMode.HTML)
@@ -641,7 +652,9 @@ async def handle_command(message: Message, cmd: str):
         if await is_admin(message):
             await db.set_chat_active(message.chat.id, True)
             await message.reply(
-                f"✅ <b>{BOT_NAME}</b> активирован\n{DIVIDER}\n<code>помощь</code>",
+                f"✅ <b>SHIFT</b> активирован\n{DIVIDER}\n"
+                f"⚓ Sea Battle · 🪙 S-Coins · 🛡 Fleets\n"
+                f"<code>мини</code> · <code>помощь</code>",
                 parse_mode=ParseMode.HTML,
             )
         else:
@@ -661,14 +674,16 @@ async def handle_command(message: Message, cmd: str):
     # Info
     if command in ("инфо", "info", "about"):
         count = await message.bot.get_chat_member_count(message.chat.id)
-        remaining = await db.founders_remaining()
         await message.reply(
-            f"💎 <b>Информация о боте</b>\n"
+            f"⚡ <b>SHIFT</b>\n"
             f"{DIVIDER}\n"
-            f"├─ Название: <b>{BOT_NAME}</b> × <b>РЕРЕ</b>\n"
-            f"├─ Участников в чате: <b>{count}</b>\n"
-            f"└─ Брелков РЕРЕ свободно: <b>{remaining}</b> из 50\n\n"
-            f"🛡 Модерация · 💰 Экономика · 🎮 Игры · 🏰 Кланы",
+            f"├─ Продукт: <b>Shift</b>\n"
+            f"├─ Игра: <b>Shift Sea Battle</b>\n"
+            f"├─ Валюта: <b>S-Coins</b>\n"
+            f"├─ Флоты: <b>Shift Fleets</b>\n"
+            f"└─ Участников в чате: <b>{count}</b>\n\n"
+            f"🛡 Модерация · 🪙 S-Coins · ⚓ Sea Battle · 🏆 Рейтинг\n\n"
+            f"<code>мини</code> — открыть приложение",
             parse_mode=ParseMode.HTML,
         )
         return
@@ -709,7 +724,7 @@ async def handle_command(message: Message, cmd: str):
         shield = " 🛡" if inv.get("щит", 0) > 0 else ""
         badges = founder_badge + vip_badge + shield
         clan = await db.get_user_clan(target_id, cid)
-        clan_line = f"\n├─ 🏰 Клан: <b>[{clan['tag']}]</b> {clan['name']}" if clan else ""
+        clan_line = f"\n├─ 🛡 Флот: <b>[{clan['tag']}]</b> {clan['name']}" if clan else ""
         role_line = ""
         if clan:
             r = await db.get_member_role(target_id, cid)
@@ -720,10 +735,10 @@ async def handle_command(message: Message, cmd: str):
         losses = user.get("losses", 0)
         wr = f" (WR {wins / max(1, wins + losses) * 100:.0f}%)" if wins + losses else ""
         await message.reply(
-            f"✨ <b>{target_name}</b>{badges}\n"
+            f"⚡ <b>{target_name}</b>{badges}\n"
             f"{DIVIDER}\n"
             f"🎮 Ур. {lvl} — {games.level_title(lvl)} ({xp}/{needed} XP)\n"
-            f"💰 Монеты: <b>{user['coins']}</b>\n"
+            f"🪙 S-Coins: <b>{user['coins']}</b>\n"
             f"⭐ Карма: <b>{user['karma']}</b> KP\n"
             f"⚠️ Варны: <b>{user['warns']}</b>/3\n"
             f"💬 Сообщений: <b>{user['messages']}</b>\n"
@@ -762,12 +777,12 @@ async def handle_command(message: Message, cmd: str):
         losses = user.get("losses", 0)
         wr = f"{wins / max(1, wins + losses) * 100:.0f}%" if wins + losses else "—"
         clan = await db.get_user_clan(uid, cid)
-        clan_line = f"\n└─ 🏰 Клан: <b>[{clan['tag']}]</b>" if clan else ""
+        clan_line = f"\n└─ 🛡 Флот: <b>[{clan['tag']}]</b>" if clan else ""
         await message.reply(
             f"📊 <b>Статистика — {fmt_user(message.from_user)}</b>\n"
             f"{DIVIDER}\n"
             f"💬 Сообщений: <b>{user['messages']}</b>\n"
-            f"💰 Монет заработано: <b>{user['coins']}</b>\n"
+            f"🪙 S-Coins: <b>{user['coins']}</b>\n"
             f"⭐ Карма: <b>{user['karma']}</b> KP\n"
             f"🎮 Игр сыграно: <b>{user.get('games_played', 0)}</b>\n"
             f"🏆 Победы: {wins} · Поражения: {losses} (WR {wr}){clan_line}",
@@ -786,15 +801,15 @@ async def handle_command(message: Message, cmd: str):
             extras.append("💎")
         extras_line = " " + " ".join(extras) if extras else ""
         clan = await db.get_user_clan(uid, cid)
-        clan_line = f"\n└─ 🏰 Казна клана: <b>{clan['coins']}</b>" if clan else ""
+        clan_line = f"\n└─ 🛡 Казна флота: <b>{clan['coins']}</b> S" if clan else ""
         streak = await db.get_daily_streak(uid, cid)
         next_bonus = 60 + max(streak - 1, 0) * 35
         await message.reply(
-            f"💰 <b>Баланс — {fmt_user(message.from_user)}</b>{extras_line}\n"
+            f"🪙 <b>S-Coins — {fmt_user(message.from_user)}</b>{extras_line}\n"
             f"{DIVIDER}\n"
-            f"├─ 🪙 <b>{user['coins']}</b> монет\n"
+            f"├─ 🪙 <b>{user['coins']}</b> S-Coins\n"
             f"├─ 🔁 Серия: <b>{streak}</b> дней\n"
-            f"├─ 🎁 Следующий бонус: +<b>{next_bonus}</b> 🪙\n"
+            f"├─ 🎁 Следующий бонус: +<b>{next_bonus}</b> S\n"
             f"└─ ⭐ Карма: <b>{user['karma']}</b> KP{clan_line}",
             parse_mode=ParseMode.HTML,
         )
@@ -814,15 +829,16 @@ async def handle_command(message: Message, cmd: str):
             inline_keyboard=[
                 [
                     InlineKeyboardButton(
-                        text="🚀 Открыть Mini App",
+                        text="⚡ Открыть Shift",
                         web_app=WebAppInfo(url=mini_url),
                     )
                 ]
             ]
         )
         await message.reply(
-            f"📱 <b>Mini App</b>\n{DIVIDER}\n"
-            f"Открыть приложение в Telegram:",
+            f"⚡ <b>SHIFT</b>\n{DIVIDER}\n"
+            f"⚓ Sea Battle · 🪙 S-Coins · 🛡 Fleets · 🏆 Rating\n\n"
+            f"Открой приложение:",
             parse_mode=ParseMode.HTML,
             reply_markup=keyboard,
         )
@@ -2351,22 +2367,25 @@ async def main():
         log.exception("Не удалось запустить Sea Battle API")
 
     await bot.set_my_commands([
-        {"command": "start", "description": "🌟 Запуск бота"},
-        {"command": "help", "description": "📋 Список команд"},
+        {"command": "start", "description": "⚡ Shift — старт"},
+        {"command": "help", "description": "📋 Команды Shift"},
         {"command": "activate", "description": "✅ Активировать в группе"},
     ])
     await bot.set_chat_menu_button(
         menu_button=MenuButtonWebApp(
-            text="Mini App",
+            text="⚡ Shift",
             web_app=WebAppInfo(url=sanitize_mini_app_url(MINI_APP_URL)),
         )
     )
     await bot.set_my_description(
-        f"💎 {BOT_NAME} × РЕРЕ — модерация, экономика, игры.\n"
-        f"🔑 Брелок РЕРЕ: +{int(FOUNDER_PROFIT_BONUS * 100)}% к прибыли"
+        "⚡ SHIFT — premium gaming ecosystem in Telegram.\n\n"
+        "⚓ Shift Sea Battle — online naval 1v1\n"
+        "🪙 S-Coins · 🛡 Shift Fleets · 🏆 Rating\n"
+        "🛡 Moderation · economy · chat games\n\n"
+        "Open the Mini App or add me to a group."
     )
     await bot.set_my_short_description(
-        f"💎 {BOT_NAME} · 🔑 РЕРЕ +{int(FOUNDER_PROFIT_BONUS * 100)}% · 🛡 💰 🎮"
+        "⚡ SHIFT · ⚓ Sea Battle · 🪙 S-Coins · 🛡 Fleets"
     )
 
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())

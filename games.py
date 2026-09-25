@@ -698,17 +698,20 @@ async def show_game_profile(user_id: int, chat_id: int, name: str) -> str:
         f"🎮 <b>{name}</b>\n"
         f"{DIVIDER}\n"
         f"{level_title(lvl)} · ур. {lvl} · {xp}/{needed} XP\n"
-        f"💰 {user['coins']} · 🏆 {wins}W/{losses}L · {wr}{badge_line}{founder_note}"
+        f"🪙 {user['coins']} S · 🏆 {wins}W/{losses}L · {wr}{badge_line}{founder_note}"
     )
 
 
 def games_help() -> str:
     return (
-        f"🎮 <b>Игры</b>\n{DIVIDER}\n\n"
+        f"🎮 <b>Shift Games</b>\n{DIVIDER}\n\n"
+        "⚓ <b>Sea Battle</b> — открой <code>мини</code>\n\n"
+        "<b>В чате:</b>\n"
         "<b>🎰</b> <code>слот</code> <code>рулетка</code> <code>колесо</code> <code>краш</code> <code>лотерея</code>\n"
         "<b>🃏</b> <code>21</code> <code>кнб</code> <code>угадай</code>\n"
         "<b>⚔️</b> <code>дуэль</code> <code>скачки</code>\n"
-        "<b>🎯</b> <code>куб</code> <code>монетка</code> <code>дартс</code> <code>баскет</code> <code>футбол</code> <code>боулинг</code>\n"
+        "<b>🎯</b> <code>куб</code> <code>монетка</code> <code>дартс</code> <code>баскет</code>\n"
         "<b>⛏️</b> <code>рыбалка</code> <code>шахта</code>\n"
-        "<b>📦</b> <code>кейс</code> <code>викторина</code> <code>магазин</code> <code>инвентарь</code>"
+        "<b>📦</b> <code>кейс</code> <code>магазин</code> <code>инвентарь</code>\n\n"
+        "Валюта: <b>S-Coins</b>"
     )
